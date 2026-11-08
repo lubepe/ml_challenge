@@ -31,3 +31,25 @@ def test_table_accepts_a_series():
 def test_table_cuts_long_texts():
     html = plots.table(pd.DataFrame({"text": ["a" * 200]}), "Texts", max_text_length=10).to_html()
     assert "aaaaaaa..." in html and "a" * 11 not in html
+
+
+def test_interval_dot_plot_draws_each_system_in_each_row():
+    fig, ax = plt.subplots()
+    systems = {"a": ([0.5, 0.6], [0.4, 0.5], [0.6, 0.7]), "b": ([0.7, 0.8], [0.6, 0.7], [0.8, 0.9])}
+    plots.interval_dot_plot(ax, ["metric 1", "metric 2"], systems)
+    assert [text.get_text() for text in ax.get_legend().get_texts()] == ["a", "b"]
+    positions = {tick.get_text(): y for tick, y in zip(ax.get_yticklabels(), ax.get_yticks())}
+    assert positions["metric 1"] > positions["metric 2"]  # the first label is drawn at the top
+    plt.close(fig)
+
+
+def test_interval_dot_plot_rejects_more_systems_than_colors():
+    fig, ax = plt.subplots()
+    too_many = {name: ([0.5], [0.4], [0.6]) for name in "abcd"}
+    try:
+        plots.interval_dot_plot(ax, ["metric"], too_many)
+        raise AssertionError("expected ValueError")
+    except ValueError:
+        pass
+    finally:
+        plt.close(fig)

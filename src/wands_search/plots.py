@@ -21,6 +21,11 @@ GRIDLINE = "#e1e0d9"
 BASELINE = "#c3c2b7"
 SERIES_1 = "#2a78d6"
 SERIES_2 = "#eb6834"
+# Third categorical slot. Below 3:1 contrast on SURFACE (2.74:1), so it is always paired with
+# a distinct marker shape and a table of the same values.
+SERIES_3 = "#1baf7a"
+SERIES_COLORS = (SERIES_1, SERIES_2, SERIES_3)
+SERIES_MARKERS = ("o", "s", "D")
 
 TOKEN_DEFINITION = (
     "Token: a word from the text, computed by removing accents, lowercasing and splitting on "
@@ -94,6 +99,28 @@ def difference_plot(ax: Axes, labels: list[str], differences, lows, highs) -> No
     ax.axvline(0, color=PRIMARY_INK, linewidth=1)
     ax.set_yticks(positions, labels)
     ax.grid(axis="y", visible=False)
+
+
+def interval_dot_plot(ax: Axes, labels: list[str], systems: dict[str, tuple]) -> None:
+    """One row per label and, in each row, one point with its 95% interval per system.
+
+    ``systems`` maps a system name to ``(means, lows, highs)``, each aligned with ``labels``.
+    Systems keep the fixed order of ``SERIES_COLORS`` and ``SERIES_MARKERS`` (color and shape),
+    are offset vertically inside each row, and are named in the legend. The first label is
+    drawn at the top.
+    """
+    if len(systems) > len(SERIES_COLORS):
+        raise ValueError(f"at most {len(SERIES_COLORS)} systems")
+    positions = list(range(len(labels)))[::-1]
+    offsets = [0.0] if len(systems) == 1 else [0.25 - 0.5 * i / (len(systems) - 1) for i in range(len(systems))]
+    for (name, (means, lows, highs)), color, marker, offset in zip(systems.items(), SERIES_COLORS, SERIES_MARKERS, offsets):
+        for position, low, high in zip(positions, lows, highs):
+            ax.plot([low, high], [position + offset] * 2, color=color, linewidth=2, solid_capstyle="round")
+        ax.plot(list(means), [position + offset for position in positions], linestyle="none", marker=marker,
+                markersize=7, color=color, markeredgecolor=SURFACE, markeredgewidth=1.5, label=name)
+    ax.set_yticks(positions, labels)
+    ax.grid(axis="y", visible=False)
+    ax.legend(loc="lower left", bbox_to_anchor=(0, 1.0), ncol=len(systems), frameon=False)
 
 
 def table(df: pd.DataFrame | pd.Series, title: str, note: str | None = None, precision: int = 1,
