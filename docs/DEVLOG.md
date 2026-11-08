@@ -260,3 +260,41 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
 - **Parâmetros/seed/versões:** só células markdown mudaram; código e saídas continuam como estavam, sem reexecução. O conjunto de teste não foi usado.
 - **Pendente:** a citação da literatura para *pseudo-relevance feedback* (Etapa 4.5) continua sem link, porque a fonte não pôde ser aberta nesta sessão.
 - **Próximo passo:** fechar o protocolo em [EVALUATION.md](EVALUATION.md) e construir o primeiro BM25.
+
+### 2026-11-08: Plano do BM25 e decisões de retrieval
+- **O que foi feito:** plano da etapa de retrieval lexical e três decisões, sem código nem avaliação. Commit da EDA (`c820de0`, branch `eda`) antes de começar.
+- **Decisões:**
+  - Biblioteca `bm25s` para o BM25. Alternativas: `rank_bm25` (Python puro, lenta para 43 mil produtos), Pyserini (exige Java), implementação própria com `scipy.sparse`.
+  - Baseline do retrieval com um único campo: `product_name`, `product_class`, `category_hierarchy`, `product_description` e os valores de `product_features` emendados, com um índice BM25 sobre esse texto. Os índices por campo, um para cada coluna, são montados à parte, a partir da tabela de produtos, só quando forem usados: na etapa do reranker, como features, ou no ajuste, se testarmos o retrieval por campo (soma ponderada ou BM25F). O índice do campo único não pode dar notas por campo, porque ao emendar os textos perde a origem de cada palavra.
+  - `k1`, `b` e as variantes são ajustados no treino e medidos uma única vez na validação (registrado no [EVALUATION.md](EVALUATION.md), seção "Ajuste de hiperparâmetros do retrieval").
+- **Parâmetros/seed/versões:** nenhum ainda. O conjunto de teste não foi usado.
+- **Próximo passo:** etapa 1 do plano, `metrics.py` com testes.
+
+### 2026-11-08: Módulo de métricas (etapa 1 do BM25)
+- **O que foi feito:** novo `src/wands_search/metrics.py` com NDCG@10, NDCG@10 na *condensed list* (só produtos julgados), MRR@10, Capped Recall@K (Exact, e Exact e Partial), judged@10, e as funções `labels_by_query`, `evaluate_run` (uma linha por query) e `summarize` (média e n por métrica). 28 testes novos em `tests/test_metrics.py`, com exemplos calculados à mão (64 testes passando no total).
+- **Decisões de implementação:** registradas no [EVALUATION.md](EVALUATION.md): ganho linear no NDCG, *condensed list* removendo os não julgados antes do corte, denominador do judged@10 e NaN para métrica sem definição na query. Lista repetindo um `product_id` gera erro.
+- **Resultado:** conferência com a ordem ideal: todas as métricas valem 1,0, com n = 287/227 no treino e 97/77 na validação, iguais aos do protocolo. O teste não foi usado.
+- **Próximo passo:** etapa 2, processamento de texto (`text.py`).
+
+### 2026-11-08: Comparação entre sistemas e critério de seleção
+- **O que foi feito:** registrados no [EVALUATION.md](EVALUATION.md) o bootstrap pareado sobre queries e o critério de seleção. Nenhum código nem avaliação rodados.
+- **Decisões:**
+  - Bootstrap pareado (2.000 sorteios, `BOOTSTRAP_SEED = 0`, intervalo de 95%) em toda comparação na validação, ao longo do projeto, para cada métrica. Não se aplica ao ajuste no treino.
+  - Critério de seleção, aplicado uma vez no final: o sistema de maior NDCG@10 na validação, a não ser que o intervalo da diferença para um sistema mais simples inclua 0.
+  - Ablações lidas como descrição, não como testes de aprovação.
+- **Pendente:** "mesmo conjunto de candidatos para todos os sistemas" continua a definir.
+- **Próximo passo:** etapa 2, `text.py`.
+
+### 2026-11-08: Uso do conjunto de teste
+- **O que foi feito:** registrado no [EVALUATION.md](EVALUATION.md), seção "Seleção e teste", como o teste é usado. Nenhum código nem avaliação rodados.
+- **Decisão:** no fim do projeto, o sistema escolhido é registrado antes, e depois os quatro sistemas (BM25, Vetorial, Híbrido, Híbrido + reranker) rodam no teste numa única execução. Um resultado melhor de outro sistema no teste não muda a escolha. As ablações ficam só na validação. Alternativa descartada: rodar só o sistema escolhido.
+- **Próximo passo:** etapa 2, `text.py`.
+
+### 2026-11-08: Processamento de texto (etapa 2 do BM25)
+- **O que foi feito:** novo `src/wands_search/text.py` com `tokenize` (remove acentos, minúsculas, quebra em tudo que não é letra ou dígito; mantém a ordem e as repetições, que o BM25 conta) e `strip_accents`, movida de `profiling.py`. `profiling.simple_tokens` passou a usar `text.tokenize` e continua devolvendo um conjunto, com o mesmo resultado de antes, então a EDA não muda. 11 testes novos em `tests/test_text.py` (75 passando).
+- **Decisão (baseline):** sem stemming e sem stopwords. Decimais e frações viram tokens separados (`72.5` → `72`, `5`; `3-3/4` → `3`, `3`, `4`), do mesmo jeito nos dois lados. `36"` (query) e `36 ''` (`product_name`) dão o mesmo token `36`. **Variantes a testar no ajuste, no treino:** stemming (Snowball); decimais e frações como um token só (3.369 valores de `product_name` têm decimal e 681 têm fração); remoção de stopwords.
+- **Resultado (catálogo inteiro e as 480 queries, sem `label`):**
+  - Tokens por produto (mediana / p95): `product_name` 6 / 13, `product_class` 2 / 4, `category_hierarchy` 8 / 15, `product_description` 60 / 160, valores de `product_features` 78 / 165. No campo único, `product_description` e `product_features` são a maior parte do texto.
+  - Vocabulário do campo único: 54.416 tokens. Queries: mediana de 3 tokens, máximo 11.
+  - 33 tokens de query não existem no catálogo, a maioria erros de digitação (`ligth`, `foutains`, `pedistole`). A EDA citava 36 sem os valores de `product_features`. Uma query não tem nenhum token no catálogo: `minnestrista` (`query_id` 383); o BM25 não vai retornar nada para ela.
+- **Próximo passo:** etapa 3, `retrieval.py`.

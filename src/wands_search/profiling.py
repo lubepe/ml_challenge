@@ -1,26 +1,20 @@
 """Data quality diagnostics used during exploration and data preparation."""
 
 import re
-import unicodedata
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from wands_search.data import PAIR_COLUMNS
+from wands_search.text import tokenize
 
 LABEL_NAMES = ["Exact", "Partial", "Irrelevant"]
 
 
-def strip_accents(text: str) -> str:
-    """Remove diacritics, so that ``décor`` and ``decor`` become the same word."""
-    decomposed = unicodedata.normalize("NFKD", text)
-    return "".join(char for char in decomposed if not unicodedata.combining(char))
-
-
 def simple_tokens(text: str) -> set[str]:
-    """Return the distinct lowercase alphanumeric tokens of ``text``, without accents."""
-    return set(re.findall(r"[a-z0-9]+", strip_accents(text).lower()))
+    """Return the distinct tokens of ``text`` (see ``wands_search.text.tokenize``)."""
+    return set(tokenize(text))
 
 
 def token_overlap(query_tokens: set[str], text_tokens: set[str]) -> float:

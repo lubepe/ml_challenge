@@ -26,7 +26,7 @@ Depois, selecione o kernel **Python (ml-challenge)**. No VS Code, também dá pa
 | Caminho | Conteúdo |
 |---|---|
 | `dataset/` | Dados brutos do WANDS (somente leitura) |
-| `src/wands_search/` | Código reutilizável (`data.py`: carga, parsers de campos e deduplicação de `label.csv`; `profiling.py`: diagnósticos de qualidade; `split.py`: divisão por query em treino, validação e teste; `plots.py`: estilo dos gráficos) |
+| `src/wands_search/` | Código reutilizável (`data.py`: carga, parsers de campos e deduplicação de `label.csv`; `profiling.py`: diagnósticos de qualidade; `split.py`: divisão por query em treino, validação e teste; `metrics.py`: métricas de avaliação por query; `text.py`: tokenização comum a queries e produtos; `plots.py`: estilo dos gráficos) |
 | `splits/` | `query_split.csv`: parte (`train`, `validation` ou `test`) de cada `query_id`, gerado por `wands_search.split` |
 | `tests/` | Testes automatizados |
 | `notebooks/` | Análises exploratórias (`01_eda.ipynb`, com um TL;DR das descobertas no topo) |
