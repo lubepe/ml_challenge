@@ -352,6 +352,23 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
 - **O que foi feito:** as diferenças com intervalo de 95% passaram a ser saídas do notebook, não só texto das conclusões. Etapa 4.2: tabela com a diferença pareada de cada combinação da grade contra a escolhida (Capped Recall@100 e NDCG@10, treino). Etapa 4.3: tabela com cada métrica do baseline e da v2 com intervalo e a diferença pareada com intervalo, e um gráfico das diferenças. Novas funções: `evaluate.compare_systems`, `evaluate.format_ci`, `plots.difference_plot`; `evaluate.tune_bm25` passou a devolver também as métricas por query de cada combinação. 142 testes passando.
 - **Correção:** as conclusões diziam "grade quase plana". Com os intervalos pareados, as diferenças são pequenas (até −0,016 de Capped Recall@100), mas 12 das 19 combinações são piores que a escolhida com intervalo que exclui 0. Texto corrigido no notebook, no DEVLOG e no EVALUATION.
 
+### 2026-11-08: Revisão de legibilidade da EDA (cópia `01_eda_revised.ipynb`)
+- **O que foi feito:** cópia [notebooks/01_eda_revised.ipynb](../notebooks/01_eda_revised.ipynb) do notebook da EDA, reescrita para ser lida sem o código e sem ler as células anteriores. O original `01_eda.ipynb` não mudou. Mudanças:
+  - Toda tabela tem título e, quando precisa, uma nota que define as colunas. Nova função `plots.table` (título, nota, arredondamento e corte de textos longos), com 3 testes (145 passando). Os blocos de `print` que funcionavam como tabela viraram tabelas com título.
+  - Conclusões em formato fixo e mais curto: Resultados, Suposições, Limitações e Escolhas e alternativas (em tabela, com o status de cada escolha: decidida, proposta ou em aberto).
+  - "Suposições" agora só traz o que tomamos como verdadeiro sem verificar, com o que muda se for falso. Descrições do método e limitações da medição, que estavam como suposições, foram para "Limitações" ou para o texto antes da célula.
+  - Referências vagas ("como assumido acima", "pergunta da Etapa 1", "a proposta") foram trocadas pelo conteúdo explícito e pela etapa exata. Subetapas numeradas (2.3.1, 2.5.1, 2.5.2).
+  - Termos técnicos em inglês (label, token, split, train/validation/test set, stratification, data leakage, pooling bias, null, imputation, typo etc.), reunidos numa nova tabela "Termos usados no notebook". "Rating" passou a designar só as colunas de opinião dos clientes, e "avaliação" só a avaliação do sistema. Tamanhos medidos com `str.split` são chamados de palavras, e não de tokens.
+  - Nomes de variáveis consistentes e sem reuso (`raw_labels` e `labels`, `query_profile`, `query_split`, `SETS`, `pair_ratings`, `has_ratings` em vez de `has_ratings_flag`, entre outros).
+- **Parâmetros/seed/versões:** os mesmos do notebook original. Notebook executado do início ao fim; todos os números das conclusões conferidos com as novas saídas, e nenhum mudou. O teste não foi usado.
+- **Próximo passo:** o usuário decide se a cópia substitui o original.
+
+### 2026-11-08: Retrieval vetorial e híbrido: decisões, código e testes
+- **O que foi feito:** decisões do vetorial e do híbrido registradas no [EVALUATION.md](EVALUATION.md) antes de qualquer número ("Retrieval vetorial e híbrido"). Código: `embeddings.py` (`FastEmbedEncoder`, `DenseIndex` com busca exata por cosseno, cache dos vetores em `cache/`), `retrieval.rrf_fuse` e `retrieval.HybridRetriever`, `evaluate.evaluate_grid`, `text.SHORT_TEXT_FIELDS` (e `single_field_text` passa a pular campos vazios, sem mudar os tokens do BM25). Testes com um encoder falso, sem baixar o modelo: 173 passando.
+- **Decisões:** `BAAI/bge-small-en-v1.5` pré-treinado, sem fine-tuning, por restrição de tempo; `fastembed` porque `torch` não instala no macOS x86_64 com Python 3.13 (`onnxruntime` limitado a < 1.24 só nessa plataforma, porque as versões novas não têm build para ela); grade no treino de texto curto ou longo × com ou sem prefixo de query; RRF com k = 60 fixo, sem ajuste (pode ser ajustado depois, no treino, como nova decisão); query sem tokens não retorna nada, como no BM25.
+- **Medido antes da grade (custo, não qualidade):** tokens por produto no tokenizer do modelo: texto curto com mediana de 27 e máximo de 82; texto longo com mediana de 154 e 0,6% acima de 512. Em 1.000 produtos, gerar os embeddings do texto longo levou 125 s com batches na ordem original e 48 s com batches ordenados por comprimento (menos padding), com embeddings idênticos (cerca de 35 min estimados para o catálogo). O embedding de uma query leva cerca de 5 ms.
+- **Próximo passo:** notebook `03_vector_hybrid.ipynb`: indexação, latência, entradas inválidas e a grade no treino.
+
 ### 2026-11-08: BM25 v3 (chave dos valores `yes`)
 - **O que foi feito:** pedido de testar a v2 mantendo a informação dos valores `yes` de `product_features`: um par `chave : yes` entra pelo texto da chave (`upholstered : yes` vira `upholstered`). Regra registrada no [EVALUATION.md](EVALUATION.md) antes de rodar. Código: `text.feature_values_text(yes_keys=...)`, `product_field_texts(yes_keys=...)`, `retrieval.V3_TEXT`; 2 testes novos. Etapa 5 de [notebooks/02_bm25.ipynb](../notebooks/02_bm25.ipynb).
 - **Resultado:**
@@ -360,3 +377,79 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
   - Validação, v3 − v2: NDCG@10 +0,002 [−0,004; 0,009], Capped Recall@100 +0,005 [−0,009; 0,025]; todos os intervalos incluem 0.
 - **Decisão:** a v2 continua como BM25 de referência (mais simples, pela regra de seleção).
 - **Observação:** outra sessão trabalhou no repositório ao mesmo tempo (`embeddings.py`, `plots.table`, `notebooks/01_eda_revised.ipynb`, `evaluate.evaluate_grid`, dependências `fastembed` e `onnxruntime`). Esta entrada cobre só a v3.
+
+### 2026-11-08: Revisão de legibilidade do notebook do BM25 (cópia `02_bm25_revised.ipynb`)
+- **O que foi feito:** cópia [notebooks/02_bm25_revised.ipynb](../notebooks/02_bm25_revised.ipynb) de `02_bm25.ipynb`, com as mesmas regras e os mesmos termos da revisão da EDA (`01_eda_revised.ipynb`). O original não mudou. Mudanças:
+  - Novo TL;DR, tabela "Termos usados no notebook" e tabela de métricas. As tabelas têm título e nota (`plots.table`), e as grades de `k1` × `b` ganharam rótulos `k1 = ...` / `b = ...`.
+  - Conclusões no formato Resultados / Suposições / Limitações / Escolhas e alternativas (em tabela, com status). Condições de medição (uma máquina, um exemplo, intervalos sem correção para comparações múltiplas) saíram de "Suposições" e foram para "Limitações"; hipóteses da error analysis ganharam seção própria.
+  - Termos: train/validation/test set no lugar de treino/validação/teste e "parte"; tuning, ablation, error analysis, typo, field, single field, key:value pair, paired bootstrap; `irrelevant_share` no lugar de `irrelevant_fraction`; `no label` no lugar de `unjudged`.
+  - Variáveis: `query_split` (a Series de `evaluate.load_split`), `baseline_index`, `baseline_per_query`, `v2_tuning`, `v2_chosen_key`, `v2_validation_per_query`, `train_validation_queries`, `query_profile`, `key_value_pairs`, `METRICS`, entre outras. Imports concentrados no Setup.
+- **Correções:** três conclusões do original contradiziam a própria saída: a indexação "de 10 a 12 s, com a tokenização como passo mais lento" (a tabela mostrava 21,9 s, com o índice como passo mais lento), a latência "abaixo de 1 ms no p50 e de 5 ms no p95" (1,67 e 6,04 ms) e o tuning "de cerca de 70 s" (139 s). Na cópia, esses números são lidos da execução salva. A afirmação de que a latência da v2 "não muda" foi trocada por "mesma ordem de grandeza": em três execuções, o p95 da v2 no validation set foi de 3,3 a 9,1 ms, e o do baseline de 5,2 a 6,9 ms.
+- **Parâmetros/seed/versões:** os mesmos do original. Notebook executado do início ao fim; reexecutar refaz a mesma rodada determinística no validation set, sem nova escolha. Métricas idênticas às do original. O test set não foi usado.
+- **Próximo passo:** o usuário decide se a cópia substitui o original.
+
+### 2026-11-08: Regras de formato dos notebooks no CONTRIBUTING
+- **O que foi feito:** as regras usadas nas cópias revisadas (`01_eda_revised.ipynb` e `02_bm25_revised.ipynb`) foram registradas no [CONTRIBUTING.md](../CONTRIBUTING.md): estrutura do notebook, seções autocontidas, formato fixo das conclusões (Resultados, Suposições, Limitações, Escolhas e alternativas), tabelas com `plots.table`, conferência dos números com as saídas, tempos lidos da execução salva, termos técnicos em inglês e nomes de variáveis comuns a todos os notebooks. As duas cópias passam a ser os modelos de formato.
+
+### 2026-11-08: Semantic search: notebook 03 e tuning no train set
+- **O que foi feito:** embeddings dos 42.994 produtos gerados para os dois textos (curto em 4,6 min, longo em 31,8 min, no CPU, fora do notebook) e salvos em `cache/embeddings/`. Notebook [notebooks/03_semantic_hybrid.ipynb](../notebooks/03_semantic_hybrid.ipynb), no formato dos notebooks revisados: Etapa 1 (os dois textos, em wordpieces), Etapa 2 (custo, entradas inválidas, latência) e Etapa 3 (tuning no train set, referência contra a BM25 v2 no train set, três exemplos). Código: `FastEmbedEncoder.with_query_prefix` e `wordpiece_counts`, `plots.WORDPIECE_DEFINITION`.
+- **Terminologia:** "wordpiece" para os pedaços do tokenizer do embedding model, porque "token" é só o resultado de `text.tokenize` (CONTRIBUTING).
+- **Resultado:**
+  - Texto longo: mediana de 154 wordpieces; 238 produtos (0,55%) passam de 512 e são cortados. Texto curto: mediana de 27.
+  - Escolhido o texto longo com prefixo (Capped Recall@100 de treino 0,708, NDCG@10 0,739). O texto curto traz menos Exact (−0,028 a −0,037, intervalos que excluem 0); o prefixo ajuda pouco.
+  - Referência no treino, contra a BM25 v2: nenhuma diferença com intervalo que exclui 0, mas cada sistema é melhor em queries diferentes (Capped Recall@100: semantic melhor em 25,6% das queries, BM25 v2 em 36,6%). judged@10 parecido (0,828 contra 0,821).
+  - Latência na execução salva: 7,6 ms no p50, dois terços no embedding da query.
+  - O validation set e o test set não foram usados.
+- **Próximo passo:** a semantic search escolhida no validation set, uma única vez, contra a BM25 v2; depois a hybrid search com RRF (k = 60).
+
+### 2026-11-08: Semantic search no validation set
+- **Decisão registrada antes dos números ([EVALUATION.md](EVALUATION.md)):** o retrieval que fornece os candidatos do reranker é o de maior Capped Recall@100 no validation set entre BM25 v2, Vetorial e Híbrido, preferindo o mais simples quando o intervalo pareado inclui 0. O NDCG@10 continua sendo o critério da seleção final.
+- **O que foi feito:** Etapa 4 de [notebooks/03_semantic_hybrid.ipynb](../notebooks/03_semantic_hybrid.ipynb): uma rodada da semantic search escolhida no treino (texto longo com prefixo) no validation set, contra a BM25 v2, com paired bootstrap; NDCG@10 separado por queries com e sem Exact; as queries com maior ganho e maior perda. Notebook executado do início ao fim; os tempos citados são da execução salva.
+- **Resultado:**
+  - NDCG@10 0,725 contra 0,653 da BM25 v2 (+0,072 [0,029; 0,116]); MRR@10 igual (0,661); Capped Recall@100 0,678 contra 0,705 (−0,027 [−0,068; 0,017]). A semantic search ordena melhor o topo, mas não cobre mais Exact nos 100 candidatos.
+  - O ganho de NDCG@10 aparece nas 77 queries com Exact (+0,056 [0,018; 0,096]), não só nas 20 sem Exact.
+  - Os sistemas são complementares: a semantic search ganha em queries descritivas (`brushed gold wall decor`), a BM25 v2 em queries com nome próprio (`trinaic towel rod`, `gracie oaks 62 oller 14 ceiling fan`).
+  - Produtos sem `label`: o vetorial traz mais produtos julgados ao topo (judged@10 +0,050) e continua à frente no condensed NDCG@10 (+0,037 [0,006; 0,070]); a regra "sem `label` = 0" não inverte a comparação.
+  - Latência: cerca de 8 ms (p50) contra cerca de 1 ms da BM25 v2.
+  - O test set não foi usado.
+- **Próximo passo:** hybrid search (RRF, k = 60): sobreposição dos 100 primeiros e Capped Recall@100 da união; uma rodada no validation set; escolha do retrieval dos candidatos do reranker.
+
+### 2026-11-08: Hybrid search: diagnóstico e peso no train set
+- **Decisão registrada antes dos números ([EVALUATION.md](EVALUATION.md)):** weighted RRF, w / (60 + posição na BM25 v2) + (1 − w) / (60 + posição no vetorial), com w em {0,2; 0,35; 0,5; 0,65; 0,8} escolhido no treino pela regra de sempre (Capped Recall@100, desempate por NDCG@10). Motivo: a pergunta de qual peso dar a cada lista; o RRF padrão fixa 50/50.
+- **O que foi feito:** pesos em `retrieval.rrf_fuse` e `HybridRetriever`; `metrics.union_capped_recall_at_k` (teto da união); 10 testes novos (185 passando). Etapa 5 de [notebooks/03_semantic_hybrid.ipynb](../notebooks/03_semantic_hybrid.ipynb): overlap e teto da união no treino, grade de w no treino, conferência de que a fusão sobre listas guardadas reproduz o `HybridRetriever`.
+- **Resultado (treino):**
+  - Overlap médio de 46,9 produtos nos 100 primeiros; teto de Capped Recall@100 da união 0,818 (100 primeiros de cada) e 0,892 (200 primeiros), contra 0,731 da BM25 v2.
+  - Escolhido w = 0,5, o RRF padrão: Capped Recall@100 0,754, NDCG@10 0,763. Todos os outros pesos perdem em Capped Recall@100 com intervalo que exclui 0.
+  - Referência (otimista): o híbrido supera a BM25 v2 (+0,023 em Capped Recall@100, +0,041 em NDCG@10) e o vetorial (+0,046 e +0,024), todos com intervalo que exclui 0.
+  - O validation set não foi usado para o híbrido; o test set não foi usado.
+- **Próximo passo:** o híbrido com w = 0,5 uma única vez no validation set; escolha do retrieval dos candidatos do reranker pelo Capped Recall@100.
+
+### 2026-11-08: Hybrid search: k e w juntos no train set
+- **Decisão registrada antes dos números ([EVALUATION.md](EVALUATION.md)):** grade conjunta de k em {10, 30, 60, 100} × w em {0,2; 0,35; 0,5; 0,65; 0,8}, no treino, substituindo o k = 60 fixo e a grade só de w (que fica como histórico).
+- **O que foi feito:** Etapa 5.3 de [notebooks/03_semantic_hybrid.ipynb](../notebooks/03_semantic_hybrid.ipynb), sobre as listas guardadas na Etapa 5.1; `fused_train_search` passou a aceitar k.
+- **Resultado (treino):** mantida a escolha k = 60, w = 0,5 (Capped Recall@100 0,754, NDCG@10 0,763). Nenhuma das outras 19 combinações é melhor com intervalo que exclui 0. Com w = 0,5, k quase não importa (0,751 a 0,754); longe de 0,5, k pequeno perde menos Capped Recall@100, mas tem o menor NDCG@10.
+- O validation set não foi usado para o híbrido; o test set não foi usado.
+- **Próximo passo:** o híbrido (k = 60, w = 0,5) uma única vez no validation set; escolha do retrieval dos candidatos do reranker pelo Capped Recall@100.
+
+### 2026-11-08: Hybrid search no validation set e o retrieval dos candidatos do reranker
+- **O que foi feito:** Etapa 6 de [notebooks/03_semantic_hybrid.ipynb](../notebooks/03_semantic_hybrid.ipynb): uma rodada do `HybridRetriever` (k = 60, w = 0,5) no validation set, comparada com a BM25 v2 e com o vetorial pelo paired bootstrap; aplicação da regra registrada para o retrieval dos candidatos do reranker.
+- **Resultado (validação):**
+  - Híbrido com o maior NDCG@10 (0,747, contra 0,653 da BM25 v2 e 0,725 do vetorial): +0,094 [0,063; 0,128] sobre a BM25 v2; +0,022 [−0,003; 0,048] sobre o vetorial, sem diferença clara.
+  - Capped Recall@100: 0,714 (Híbrido), 0,705 (BM25 v2), 0,678 (vetorial). A diferença do Híbrido inclui 0 contra os dois; o ganho de cobertura sobre a BM25 v2 visto no treino (+0,023) não se confirma de forma clara (+0,008 [−0,008; 0,028]).
+  - **Candidatos do reranker: BM25 v2**, pela regra (fica o mais simples quando o intervalo inclui 0). A quarta linha da tabela passa a ser "BM25 v2 + reranker".
+  - A regra "sem `label` = 0" não inverte a comparação: o Híbrido fica à frente da BM25 v2 também no condensed NDCG@10 (+0,035 [0,013; 0,058]).
+  - Latência: 9,4 ms (p50) nesta execução; numa execução seguinte, 13,4 ms. Varia bastante; a ordem de grandeza é de cerca de 10 ms.
+  - O test set não foi usado.
+- **Próximo passo:** reranker (learning-to-rank) sobre os 100 primeiros da BM25 v2; a cosine similarity do vetorial é candidata a feature.
+
+### 2026-11-08: Regra dos candidatos do reranker substituída e análise por tipo de query
+- **Decisão ([EVALUATION.md](EVALUATION.md)), depois da Etapa 6 e antes de qualquer número do reranker:** o reranker é treinado sobre os 100 primeiros da BM25 v2 e sobre os 100 primeiros do Híbrido, e a seleção final pelo NDCG@10 decide; a regra anterior (candidatos pelo Capped Recall@100) fica substituída. Motivo: Híbrido e BM25 v2 empatam na cobertura na validação (19 queries melhores, 16 piores, 42 iguais), mas o Híbrido ordena melhor; a regra anterior tratava "intervalo inclui 0" como igualdade com 77 queries. A seleção final passa a ter cinco sistemas (BM25 v2 + reranker entra).
+- **Conferência:** Capped Recall@100 recalculado de forma independente bate com a biblioteca; não havia erro de cálculo.
+- **O que foi feito:** `profiling.query_token_descriptors` (com teste; 186 passando). Etapa 7 de [notebooks/03_semantic_hybrid.ipynb](../notebooks/03_semantic_hybrid.ipynb): tipos de query (rare token, token fora do catalog, número, tamanho) nas 384 queries do train e do validation set; métricas por grupo; judged@100; exemplos. Conclusões da Etapa 6.2 e TL;DR atualizados.
+- **Resultado (train + validation, descritivo):**
+  - Semantic search contra BM25 v2: NDCG@10 +0,031 [0,011; 0,052], Capped Recall@100 −0,024 [−0,046; −0,001]. A BM25 cobre mais, a semantic search ordena melhor.
+  - A maior vantagem de cobertura da BM25 v2 está nas 29 queries com número (0,844 contra 0,703; −0,140 [−0,220; −0,066]); em queries com rare token (nomes, marcas), os dois não se distinguem.
+  - Hybrid search: maior NDCG@10 que a BM25 v2 em 7 de 8 grupos (intervalo que exclui 0) e Capped Recall@100 +0,019 [0,008; 0,031] nas 384 queries; nos grupos em que a BM25 é forte, não se distingue dela.
+  - judged@100 (validação): 0,676 BM25 v2, 0,627 semantic, 0,669 hybrid; o Capped Recall@100 da semantic search pode estar subestimado.
+  - O test set não foi usado.
+- **Próximo passo:** reranker (learning-to-rank) sobre os candidatos da BM25 v2 e da hybrid search.

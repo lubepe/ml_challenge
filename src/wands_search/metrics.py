@@ -84,6 +84,21 @@ def capped_recall_at_k(
     return hits / min(k, n_relevant)
 
 
+def union_capped_recall_at_k(
+    rankings: Sequence[Sequence[int]], labels: QueryLabels, k: int = 100, depth: int | None = None,
+    relevant: frozenset[str] = EXACT_ONLY,
+) -> float:
+    """Best Capped Recall@k that any list of k products taken from the union of ``rankings`` can reach.
+
+    The union holds the first ``depth`` products of each ranking (all of them when ``depth`` is
+    None). Returns min(relevant products in the union, k) / min(k, relevant products of the query),
+    or NaN when the query has no relevant product. It is the ceiling of a fusion of the rankings.
+    """
+    union = {product_id for ranking in rankings for product_id in (ranking if depth is None else ranking[:depth])}
+    best_first = sorted(union, key=lambda product_id: labels.get(product_id) not in relevant)
+    return capped_recall_at_k(best_first, labels, k=k, relevant=relevant)
+
+
 def judged_at_k(ranking: Sequence[int], labels: QueryLabels, k: int = 10) -> float:
     """Share of the returned products in the top k that have a label for the query.
 

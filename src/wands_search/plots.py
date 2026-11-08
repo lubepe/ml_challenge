@@ -28,6 +28,13 @@ TOKEN_DEFINITION = (
     'Example: \'Fawkes 36" Blue-Vanity\' gives the tokens fawkes, 36, blue and vanity.'
 )
 
+WORDPIECE_DEFINITION = (
+    "Wordpiece: a piece of text from the tokenizer of the embedding model (bge-small-en-v1.5), "
+    "which splits rare words into known pieces and adds two special pieces to every input. "
+    "Example: 'Fawkes 36\" Blue-Vanity' gives [CLS], fa, ##wk, ##es, 36, \", blue, -, vanity and [SEP] "
+    "(10 wordpieces). The model reads at most 512 wordpieces."
+)
+
 
 def apply_style() -> None:
     """Set the seaborn theme. The explicit surface keeps charts readable on dark editors."""

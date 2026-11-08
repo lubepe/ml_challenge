@@ -138,6 +138,60 @@ def test_single_field_index_with_clean_features_drops_yes_no_and_numbers():
     assert clean.search("500", k=10).empty
     assert clean.search("caramel", k=10)["product_id"].tolist() == [2]
 
+
+def test_rrf_score_is_the_sum_of_reciprocal_ranks():
+    fused = retrieval.rrf_fuse([[1, 2], [2, 3]], k=60)
+    assert fused["product_id"].tolist() == [2, 1, 3]
+    assert fused["score"].tolist() == pytest.approx([1 / 62 + 1 / 61, 1 / 61, 1 / 62])
+
+
+@pytest.mark.parametrize(("k", "winner"), [(60, "B"), (1, "A")])
+def test_rrf_k_decides_between_top_of_one_list_and_agreement(k, winner):
+    # A (id 1) is first in list one only; B (id 2) is fifth in both lists.
+    list_one = [1, 11, 12, 13, 2]
+    list_two = [21, 22, 23, 24, 2]
+    fused = retrieval.rrf_fuse([list_one, list_two], k=k)
+    position = {pid: rank for pid, rank in zip(fused["product_id"], fused["rank"])}
+    assert (position[2] < position[1]) == (winner == "B")
+
+
+def test_rrf_ties_are_broken_by_product_id():
+    assert retrieval.rrf_fuse([[5, 3], [3, 5]])["product_id"].tolist() == [3, 5]
+
+
+def test_rrf_of_empty_lists_is_empty():
+    assert retrieval.rrf_fuse([[], []]).empty
+
+
+class FixedRetriever:
+    def __init__(self, ranking):
+        self.ranking = ranking
+        self.depths = []
+
+    def search(self, query, k):
+        self.depths.append(k)
+        return pd.DataFrame({"product_id": self.ranking[:k]})
+
+
+def test_hybrid_fuses_each_retriever_at_its_depth_and_cuts_at_k():
+    first, second = FixedRetriever([1, 2, 3]), FixedRetriever([3, 4])
+    hybrid = retrieval.HybridRetriever([first, second], depth=2)
+    result = hybrid.search("chair", k=2)
+    assert first.depths == second.depths == [2]
+    assert result["product_id"].tolist() == [1, 3]
+
+
+def test_hybrid_returns_bm25_results_when_the_other_list_is_empty(index):
+    hybrid = retrieval.HybridRetriever([index, FixedRetriever([])])
+    assert hybrid.search("ottoman", k=10)["product_id"].tolist() == [20]
+
+
+@pytest.mark.parametrize("query", [None, "", "  "])
+def test_hybrid_rejects_invalid_queries(query):
+    with pytest.raises(retrieval.InvalidQueryError):
+        retrieval.HybridRetriever([FixedRetriever([1])]).search(query)
+
+
 def test_v3_index_finds_products_by_yes_keys():
     products = pd.DataFrame({
         "product_id": [1, 2],
@@ -151,3 +205,34 @@ def test_v3_index_finds_products_by_yes_keys():
     assert v3.search("upholstered", k=10)["product_id"].tolist() == [1]
     v2 = retrieval.build_single_field_index(products, **retrieval.V2_TEXT)
     assert v2.search("upholstered", k=10).empty
+
+
+def test_weighted_rrf_multiplies_each_list_contribution():
+    fused = retrieval.rrf_fuse([[1], [2]], k=60, weights=[0.8, 0.2])
+    assert fused["product_id"].tolist() == [1, 2]
+    assert fused["score"].tolist() == pytest.approx([0.8 / 61, 0.2 / 61])
+
+
+def test_equal_weights_give_the_order_of_standard_rrf():
+    rankings = [[1, 2, 3], [3, 4, 1]]
+    standard = retrieval.rrf_fuse(rankings)
+    halves = retrieval.rrf_fuse(rankings, weights=[0.5, 0.5])
+    assert standard["product_id"].tolist() == halves["product_id"].tolist()
+
+
+@pytest.mark.parametrize(("weight", "winner"), [(0.8, 1), (0.2, 2)])
+def test_the_weight_decides_between_the_tops_of_two_lists(weight, winner):
+    fused = retrieval.rrf_fuse([[1, 2], [2, 1]], weights=[weight, 1 - weight])
+    assert fused["product_id"].iloc[0] == winner
+
+
+def test_weights_must_match_the_lists():
+    with pytest.raises(ValueError):
+        retrieval.rrf_fuse([[1], [2]], weights=[1.0])
+    with pytest.raises(ValueError):
+        retrieval.HybridRetriever([FixedRetriever([1])], weights=[0.5, 0.5])
+
+
+def test_hybrid_uses_its_weights():
+    hybrid = retrieval.HybridRetriever([FixedRetriever([1, 2]), FixedRetriever([2, 1])], weights=[0.2, 0.8])
+    assert hybrid.search("chair", k=1)["product_id"].tolist() == [2]

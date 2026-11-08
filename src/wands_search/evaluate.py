@@ -147,6 +147,28 @@ def tune_bm25(
     return pd.DataFrame(rows), per_query
 
 
+def evaluate_grid(
+    systems: dict[str, SearchFunction],
+    queries: pd.DataFrame,
+    labels: dict[int, dict[int, str]],
+    k: int = RETRIEVAL_K,
+) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+    """Evaluate each named system of a grid, without timing.
+
+    Returns the mean of every metric (one row per system, with a ``system`` column) and the
+    per-query metrics of each system, for paired comparisons and for ``select_tuned``.
+    """
+    rows, per_query = [], {}
+    for name, search in systems.items():
+        run = {
+            query_id: list(search(query_text, k))
+            for query_id, query_text in zip(queries["query_id"], queries["query"])
+        }
+        per_query[name] = metrics.evaluate_run(run, labels)
+        rows.append({"system": name, **per_query[name].mean().to_dict()})
+    return pd.DataFrame(rows), per_query
+
+
 def select_tuned(
     results: pd.DataFrame,
     metric: str = TUNING_METRIC,

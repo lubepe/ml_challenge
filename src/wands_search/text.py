@@ -109,6 +109,13 @@ def product_field_texts(products: pd.DataFrame, clean_features: bool = False, ye
     return texts.fillna("").astype(str)
 
 
-def single_field_text(field_texts: pd.DataFrame) -> pd.Series:
-    """Join every field of ``product_field_texts`` into one text per product, separated by spaces."""
-    return field_texts[SEARCH_FIELDS].agg(" ".join, axis=1)
+def single_field_text(field_texts: pd.DataFrame, fields: list[str] = SEARCH_FIELDS) -> pd.Series:
+    """Join ``fields`` of ``product_field_texts`` into one text per product, separated by spaces.
+
+    Empty fields are skipped, so that a missing ``product_class`` leaves no extra space.
+    """
+    return field_texts[fields].agg(lambda row: " ".join(value for value in row if value), axis=1)
+
+
+# Fields of the short product text of the dense retrieval (docs/EVALUATION.md).
+SHORT_TEXT_FIELDS = ["product_name", "product_class", "category_hierarchy"]

@@ -119,6 +119,11 @@ def test_clean_feature_values_text():
     assert text.feature_values_text(value, clean=True) == "caramel 5 years"
 
 
+def test_single_field_text_skips_empty_fields():
+    fields = pd.DataFrame({"product_name": ["sofa"], "product_class": [""], "category_hierarchy": ["living room"]})
+    assert text.single_field_text(fields, text.SHORT_TEXT_FIELDS).tolist() == ["sofa living room"]
+
+
 def test_yes_keys_replace_yes_values_with_their_key():
     value = "upholstered : yes|footboard : no|color : caramel|width:500"
     assert text.feature_values_text(value, clean=True, yes_keys=True) == "upholstered caramel"

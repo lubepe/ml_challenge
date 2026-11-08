@@ -130,3 +130,12 @@ def test_compare_systems_reports_both_systems_and_the_difference():
     assert row["difference_ci"] == "0.050 [0.050; 0.050]"
     assert row["share_v2_better"] == 1.0
     assert {"v2_ci", "baseline_ci"} <= set(table.columns)
+
+
+def test_evaluate_grid_has_one_row_per_system_and_per_query_tables():
+    queries = evaluate.split_queries(QUERIES, SPLIT, "validation")
+    systems = {"good": fake_search, "empty": lambda query, k: []}
+    results, per_query = evaluate.evaluate_grid(systems, queries, LABELS, k=10)
+    assert results["system"].tolist() == ["good", "empty"]
+    assert set(per_query) == {"good", "empty"}
+    assert results.set_index("system").loc["good", "ndcg@10"] > results.set_index("system").loc["empty", "ndcg@10"]

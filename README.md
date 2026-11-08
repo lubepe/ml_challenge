@@ -26,10 +26,11 @@ Depois, selecione o kernel **Python (ml-challenge)**. No VS Code, também dá pa
 | Caminho | Conteúdo |
 |---|---|
 | `dataset/` | Dados brutos do WANDS (somente leitura) |
-| `src/wands_search/` | Código reutilizável (`data.py`: carga, parsers de campos e deduplicação de `label.csv`; `profiling.py`: diagnósticos de qualidade; `split.py`: divisão por query em treino, validação e teste; `metrics.py`: métricas de avaliação por query; `text.py`: tokenização comum a queries e produtos e texto pesquisável de cada campo; `retrieval.py`: índice BM25 (`bm25s`), busca e validação da query; `evaluate.py`: execução de um sistema numa parte do split, métricas, bootstrap e latência (o teste fica bloqueado); `plots.py`: estilo dos gráficos) |
+| `src/wands_search/` | Código reutilizável (`data.py`: carga, parsers de campos e deduplicação de `label.csv`; `profiling.py`: diagnósticos de qualidade; `split.py`: divisão por query em treino, validação e teste; `metrics.py`: métricas de avaliação por query; `text.py`: tokenização comum a queries e produtos e texto pesquisável de cada campo; `retrieval.py`: índice BM25 (`bm25s`), busca, validação da query e hybrid search (RRF); `embeddings.py`: semantic search com embeddings de `BAAI/bge-small-en-v1.5` (`fastembed`, ONNX Runtime, sem `torch`) e cache dos embeddings dos produtos; `evaluate.py`: execução de um sistema numa parte do split, métricas, bootstrap e latência (o teste fica bloqueado); `plots.py`: estilo dos gráficos e tabelas) |
 | `splits/` | `query_split.csv`: parte (`train`, `validation` ou `test`) de cada `query_id`, gerado por `wands_search.split` |
-| `tests/` | Testes automatizados |
-| `notebooks/` | Análises exploratórias (`01_eda.ipynb`, com um TL;DR das descobertas no topo) e retrieval lexical (`02_bm25.ipynb`) |
+| `tests/` | Testes automatizados (não baixam o embedding model) |
+| `cache/` | Fora do git. O embedding model baixado (`cache/fastembed/`) e os embeddings dos produtos (`cache/embeddings/`), gerados na primeira execução do `03_semantic_hybrid.ipynb`: cerca de 5 min para o texto curto e 32 min para o longo, num CPU Intel i9 |
+| `notebooks/` | Análises exploratórias (`01_eda.ipynb`, com um TL;DR das descobertas no topo, e `01_eda_revised.ipynb`, cópia revisada para legibilidade) e retrieval lexical (`02_bm25.ipynb`, e `02_bm25_revised.ipynb`, cópia revisada para legibilidade); semantic search e hybrid search (`03_semantic_hybrid.ipynb`) |
 | `docs/` | [DEVLOG](docs/DEVLOG.md) e [protocolo de avaliação](docs/EVALUATION.md) |
 
 Convenções de desenvolvimento em [CONTRIBUTING.md](CONTRIBUTING.md). Instruções para agentes de IA em [AGENTS.md](AGENTS.md); o `CLAUDE.md` só importa o `AGENTS.md` e o `CONTRIBUTING.md`.

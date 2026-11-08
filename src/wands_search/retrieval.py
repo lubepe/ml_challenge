@@ -145,3 +145,52 @@ def timed_build(products: pd.DataFrame, **options) -> tuple[BM25Index, float]:
     start = time.perf_counter()
     index = build_single_field_index(products, **options)
     return index, time.perf_counter() - start
+
+
+# Reciprocal Rank Fusion (Cormack, Clarke and Büttcher, SIGIR 2009). k = 60 is the value of
+# the paper, fixed without tuning; each list contributes its top RRF_DEPTH products
+# (docs/EVALUATION.md, "Retrieval vetorial e híbrido").
+RRF_K = 60
+RRF_DEPTH = 200
+
+
+def rrf_fuse(rankings: Sequence[Sequence[int]], k: int = RRF_K, weights: Sequence[float] | None = None) -> pd.DataFrame:
+    """Fuse ranked lists of ``product_id``: each product scores the sum of weight / (k + rank) over the lists.
+
+    Ranks start at 1, and a list where the product is missing adds nothing. Without ``weights``,
+    every list weighs 1 (the standard RRF). Ties are broken by ``product_id``. Returns the same
+    columns as ``BM25Index.search``.
+    """
+    weights = [1.0] * len(rankings) if weights is None else list(weights)
+    if len(weights) != len(rankings):
+        raise ValueError("weights and rankings must have the same length")
+    scores: dict[int, float] = {}
+    for ranking, weight in zip(rankings, weights):
+        for rank, product_id in enumerate(ranking, start=1):
+            scores[product_id] = scores.get(product_id, 0.0) + weight / (k + rank)
+    ordered = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
+    return pd.DataFrame({
+        "rank": np.arange(1, len(ordered) + 1, dtype=int),
+        "product_id": np.array([product_id for product_id, _ in ordered], dtype=np.int64),
+        "score": np.array([score for _, score in ordered], dtype=float),
+    })
+
+
+class HybridRetriever:
+    """Weighted RRF of several retrievers, each with a ``search(query, k)`` that returns a ``product_id`` column."""
+
+    def __init__(self, retrievers: Sequence, k: int = RRF_K, depth: int = RRF_DEPTH, weights: Sequence[float] | None = None):
+        if not retrievers:
+            raise ValueError("at least one retriever is needed")
+        if weights is not None and len(weights) != len(retrievers):
+            raise ValueError("weights and retrievers must have the same length")
+        self.retrievers = list(retrievers)
+        self.k = k
+        self.depth = depth
+        self.weights = weights
+
+    def search(self, query: object, k: int = 100) -> pd.DataFrame:
+        """Top ``k`` products of the fusion. Invalid queries raise ``InvalidQueryError``, as in each retriever."""
+        prepare_query(query)
+        rankings = [retriever.search(query, self.depth)["product_id"].tolist() for retriever in self.retrievers]
+        return rrf_fuse(rankings, self.k, self.weights).head(k)

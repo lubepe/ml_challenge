@@ -102,3 +102,33 @@ def within_query_spearman(pairs: pd.DataFrame, value_column: str, min_pairs: int
         return group["label_order"].rank().corr(group[value_column].rank())
 
     return known.groupby("query_id").apply(spearman, include_groups=False).dropna()
+
+
+def query_token_descriptors(query_texts: pd.Series, product_tokens: pd.Series, stem: bool = False) -> pd.DataFrame:
+    """Describe each query by its tokens against the catalog, one row per entry of ``query_texts``.
+
+    ``product_tokens`` holds the token list of each product (as in ``retrieval.single_field_tokens``),
+    and ``stem`` must match how they were made. Columns:
+    - ``n_tokens``: tokens of the query;
+    - ``rarest_token_products``: number of products that contain the rarest query token the catalog
+      has (0 when no query token is in the catalog);
+    - ``has_unknown_token``: some query token is in no product;
+    - ``has_number``: some query token is only digits.
+    """
+    products_with_token: dict[str, int] = {}
+    for tokens in product_tokens:
+        for token in set(tokens):
+            products_with_token[token] = products_with_token.get(token, 0) + 1
+
+    def describe(query_text: str) -> dict:
+        tokens = tokenize(query_text, stem=stem)
+        counts = [products_with_token.get(token, 0) for token in tokens]
+        known = [count for count in counts if count > 0]
+        return {
+            "n_tokens": len(tokens),
+            "rarest_token_products": min(known) if known else 0,
+            "has_unknown_token": any(count == 0 for count in counts),
+            "has_number": any(token.isdigit() for token in tokens),
+        }
+
+    return pd.DataFrame([describe(query_text) for query_text in query_texts], index=query_texts.index)

@@ -135,3 +135,24 @@ def test_evaluate_run_and_summarize():
     assert summary.loc["ndcg@10", "n_queries"] == 2
     assert summary.loc["mrr@10", "n_queries"] == 1
     assert summary.loc["mrr@10", "mean"] == pytest.approx(1.0)
+
+
+def test_union_capped_recall_counts_exact_found_by_either_ranking():
+    # 8 Exact (1-8); one ranking finds 1-4, the other 3-6: the union finds 6 of 8.
+    labels = {product_id: "Exact" for product_id in range(1, 9)} | {50: "Partial"}
+    first, second = [1, 2, 3, 4, 50], [3, 4, 5, 6, 99]
+    assert metrics.union_capped_recall_at_k([first, second], labels, k=100) == pytest.approx(6 / 8)
+
+
+def test_union_capped_recall_is_limited_to_k_products():
+    labels = {product_id: "Exact" for product_id in range(10)}
+    assert metrics.union_capped_recall_at_k([[0, 1, 2], [3, 4, 5]], labels, k=4) == pytest.approx(4 / 4)
+
+
+def test_union_capped_recall_uses_only_the_first_depth_products():
+    labels = {1: "Exact", 2: "Exact"}
+    assert metrics.union_capped_recall_at_k([[9, 1], [8, 2]], labels, k=100, depth=1) == 0.0
+
+
+def test_union_capped_recall_is_nan_without_exact():
+    assert math.isnan(metrics.union_capped_recall_at_k([[1]], {1: "Partial"}, k=100))

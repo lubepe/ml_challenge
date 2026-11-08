@@ -120,3 +120,13 @@ def test_bootstrap_mean_ci_brackets_the_mean_and_is_reproducible():
     low, high = profiling.bootstrap_mean_ci(values, seed=0)
     assert low < values.mean() < high
     assert (low, high) == profiling.bootstrap_mean_ci(values, seed=0)
+
+
+def test_query_token_descriptors_against_the_catalog():
+    product_tokens = pd.Series([["leather", "chair"], ["leather", "sofa"], ["oak", "chair"]])
+    queries = pd.Series(["Leather Chairs", "oak table", "36 sofa", "&/"], index=[5, 6, 7, 8])
+    result = profiling.query_token_descriptors(queries, product_tokens, stem=True)
+    assert result.loc[5].to_dict() == {"n_tokens": 2, "rarest_token_products": 2, "has_unknown_token": False, "has_number": False}
+    assert result.loc[6].to_dict() == {"n_tokens": 2, "rarest_token_products": 1, "has_unknown_token": True, "has_number": False}
+    assert result.loc[7].to_dict() == {"n_tokens": 2, "rarest_token_products": 1, "has_unknown_token": True, "has_number": True}
+    assert result.loc[8].to_dict() == {"n_tokens": 0, "rarest_token_products": 0, "has_unknown_token": False, "has_number": False}
