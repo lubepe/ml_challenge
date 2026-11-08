@@ -320,3 +320,19 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
   - Latência do retrieval com K = 100: abaixo de 1 ms no p50 e entre 2,5 e 3,5 ms no p95, em três execuções, macOS x86_64.
   - Exemplos de treino: em `tye dye duvet cover` (`tye` fora do catálogo), 5 dos 10 primeiros são Exact; em `pedistole sink`, só `sink` conta, e os 10 primeiros são acessórios de pia (5 Irrelevant, 5 sem `label`), com notas quase empatadas.
 - **Próximo passo:** etapa 4, `evaluate.py` (avaliação por query, bootstrap, latência, bloqueio do teste), e a Etapa 3 do notebook com o BM25 na validação.
+
+### 2026-11-08: Avaliação do BM25 baseline (etapa 4)
+- **O que foi feito:** novo `src/wands_search/evaluate.py`: `load_split`, `split_queries` (o teste só abre com `allow_test=True`; sem isso, `TestSetLockedError`), `run_system` (rankings e latência por query, com 20 buscas de aquecimento), `evaluate_system`, `summary_table` (média, intervalo de 95% e n de cada métrica; p50 e p95 da latência) e `paired_bootstrap`. `bootstrap_mean_ci` foi movida de `profiling.py` para `metrics.py`; `profiling` continua expondo a função para a EDA. 11 testes novos (109 passando). Etapa 3 de [notebooks/02_bm25.ipynb](../notebooks/02_bm25.ipynb), executado do início ao fim. Resultados na tabela do [EVALUATION.md](EVALUATION.md).
+- **Parâmetros/seed/versões:** BM25 do campo único, `k1 = 1.2`, `b = 0.75`, `lucene`, `bm25s` 0.3.16. Cada sistema devolve 200 produtos (Capped Recall@200). Bootstrap com 2.000 sorteios e `BOOTSTRAP_SEED = 0`. O teste não foi usado.
+- **Resultado:**
+  - NDCG@10: 0,700 no treino [0,665; 0,736] e **0,620 na validação [0,555; 0,687]**. MRR@10 (Exact): 0,700 e 0,610. Capped Recall@100 (Exact): 0,697 e 0,702; na validação, 0,611 em @50 e 0,771 em @200.
+  - judged@10 de 0,815 no treino e 0,756 na validação; sem os produtos sem `label`, o NDCG@10 subiria 0,121 [0,098; 0,145] e 0,161 [0,116; 0,209]. A regra "sem `label` = 0" só pode ser confirmada com um segundo sistema.
+  - Checagem da estratificação: correlação de postos entre o NDCG@10 por query e `exact_share` de 0,152; com `n_judged` 0,085; com a fração de Irrelevant 0,022. A estratificação fica como está.
+  - A validação tem mais queries com nota perto de 0 que o treino (cerca de 8% contra 4% entre 0 e 0,05).
+  - As 10 piores queries de treino têm NDCG@10 = 0; em 7 delas, nenhum dos 10 primeiros tem `label`. Hipóteses a conferir na análise de erros: `bed side table` contra `bedside`/`nightstand`; `oriental vanity`.
+- **Correção:** a primeira versão da conclusão 3.1 dizia que o MRR@10 de 0,61 correspondia ao primeiro Exact "perto da posição 1,6". Está errado: a média de 1/posição não se converte numa posição média. Corrigido antes do registro.
+- **Próximo passo:** ajuste no treino (`k1`, `b` e variantes do texto indexado), com grade fixada antes, e uma única rodada na validação com a combinação escolhida.
+
+### 2026-11-08: Métrica do ajuste do BM25
+- **Decisão:** o ajuste no treino escolhe a combinação de maior Capped Recall@100 (só Exact, 227 queries), com desempate pelo NDCG@10 quando a diferença for menor que 0,005. Substitui o "maior NDCG@10" registrado antes no [EVALUATION.md](EVALUATION.md).
+- **Por quê:** no sistema final, o BM25 gera os candidatos do reranker; um Exact na posição 80 ainda pode subir, mas um na posição 150 está perdido. O critério de seleção entre sistemas continua o NDCG@10 na validação.

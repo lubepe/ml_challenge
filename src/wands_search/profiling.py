@@ -3,10 +3,10 @@
 import re
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from wands_search.data import PAIR_COLUMNS
+from wands_search.metrics import bootstrap_mean_ci  # noqa: F401 (kept here for notebooks/01_eda.ipynb)
 from wands_search.text import tokenize
 
 LABEL_NAMES = ["Exact", "Partial", "Irrelevant"]
@@ -102,15 +102,3 @@ def within_query_spearman(pairs: pd.DataFrame, value_column: str, min_pairs: int
         return group["label_order"].rank().corr(group[value_column].rank())
 
     return known.groupby("query_id").apply(spearman, include_groups=False).dropna()
-
-
-def bootstrap_mean_ci(
-    values: pd.Series, seed: int, n_resamples: int = 2000, level: float = 0.95
-) -> tuple[float, float]:
-    """Percentile bootstrap confidence interval of the mean, resampling ``values`` with replacement."""
-    rng = np.random.default_rng(seed)
-    array = values.to_numpy()
-    means = rng.choice(array, size=(n_resamples, len(array))).mean(axis=1)
-    tail = (1 - level) / 2 * 100
-    low, high = np.percentile(means, [tail, 100 - tail])
-    return float(low), float(high)

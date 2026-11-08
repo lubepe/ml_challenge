@@ -8,6 +8,7 @@ the query is unjudged: it has gain 0 and is never relevant.
 import math
 from collections.abc import Iterable, Mapping, Sequence
 
+import numpy as np
 import pandas as pd
 
 GAINS = {"Exact": 2, "Partial": 1, "Irrelevant": 0}
@@ -131,3 +132,15 @@ def evaluate_run(
 def summarize(per_query: pd.DataFrame) -> pd.DataFrame:
     """Mean over queries and number of queries where each metric is defined."""
     return pd.DataFrame({"mean": per_query.mean(), "n_queries": per_query.count()})
+
+
+def bootstrap_mean_ci(
+    values: pd.Series, seed: int, n_resamples: int = 2000, level: float = 0.95
+) -> tuple[float, float]:
+    """Percentile bootstrap confidence interval of the mean, resampling ``values`` with replacement."""
+    rng = np.random.default_rng(seed)
+    array = values.to_numpy()
+    means = rng.choice(array, size=(n_resamples, len(array))).mean(axis=1)
+    tail = (1 - level) / 2 * 100
+    low, high = np.percentile(means, [tail, 100 - tail])
+    return float(low), float(high)
