@@ -4,6 +4,7 @@ import re
 import unicodedata
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from wands_search.data import PAIR_COLUMNS
@@ -88,3 +89,34 @@ def query_label_profile(labels: pd.DataFrame) -> pd.DataFrame:
     counts["n_judged"] = counts[LABEL_NAMES].sum(axis=1)
     counts["exact_fraction"] = counts["Exact"] / counts["n_judged"]
     return counts
+
+
+LABEL_ORDER = {"Irrelevant": 0, "Partial": 1, "Exact": 2}
+
+
+def within_query_spearman(pairs: pd.DataFrame, value_column: str, min_pairs: int = 20) -> pd.Series:
+    """Spearman correlation between ``label`` order and ``value_column``, computed inside each query.
+
+    Pairs with a missing value are dropped first. Queries left with fewer than ``min_pairs``
+    pairs, or where either side is constant, are omitted. Spearman is the Pearson correlation
+    of the average ranks, so ties are handled. Returns a Series indexed by ``query_id``.
+    """
+    known = pairs.dropna(subset=[value_column]).assign(label_order=lambda df: df["label"].map(LABEL_ORDER))
+    known = known.groupby("query_id").filter(lambda g: len(g) >= min_pairs)
+
+    def spearman(group: pd.DataFrame) -> float:
+        return group["label_order"].rank().corr(group[value_column].rank())
+
+    return known.groupby("query_id").apply(spearman, include_groups=False).dropna()
+
+
+def bootstrap_mean_ci(
+    values: pd.Series, seed: int, n_resamples: int = 2000, level: float = 0.95
+) -> tuple[float, float]:
+    """Percentile bootstrap confidence interval of the mean, resampling ``values`` with replacement."""
+    rng = np.random.default_rng(seed)
+    array = values.to_numpy()
+    means = rng.choice(array, size=(n_resamples, len(array))).mean(axis=1)
+    tail = (1 - level) / 2 * 100
+    low, high = np.percentile(means, [tail, 100 - tail])
+    return float(low), float(high)

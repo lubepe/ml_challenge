@@ -37,6 +37,9 @@ Convenções do repositório, válidas para colaboradores humanos e agentes de I
 - As conclusões ficam logo abaixo da célula de código que as sustenta, sempre que possível, e não só no fim da etapa.
 - O markdown dos notebooks pode ser em português; o código segue a regra de idioma acima.
 - Conclusões só afirmam o que as saídas mostram.
+- **Suposições explícitas:** toda suposição feita em uma análise é declarada no notebook, junto da conclusão que depende dela.
+- **Alternativas explícitas:** toda escolha, mesmo proposta ou provisória, vem acompanhada das outras opções possíveis.
+- **Fontes externas:** o que vier de fora do dataset, como artigos e documentação, cita o link da fonte e fica separado do que os nossos dados mostram.
 
 ## Gráficos
 

@@ -124,3 +124,139 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
   - `CONTRIBUTING.md`: checklist "Antes de cada commit", terminologia (usar sempre o nome da coluna), conclusões logo abaixo da célula que as sustenta e regras de gráficos.
   - `pytest` adicionado ao grupo `dev`. Kernel Jupyter `ml-challenge` registrado (comando no README).
 - **Por quê:** manter o padrão entre sessões e colaboradores, e permitir executar os notebooks no editor.
+
+### 2026-11-06: Fontes do WANDS, suposições e alternativas no notebook
+- **O que foi feito:** leitura do artigo do WANDS (preprint da ECIR 2022), das diretrizes de anotação, do README oficial e do post da Wayfair. Nova seção no início de [notebooks/01_eda.ipynb](../notebooks/01_eda.ipynb) com o resumo e os links. Conclusões do notebook agora declaram suposições e, para cada escolha, as alternativas. Convenção registrada no [CONTRIBUTING.md](../CONTRIBUTING.md).
+- **Por quê:** o notebook dizia não saber como os candidatos foram escolhidos, e o artigo documenta isso. Pedido explícito de deixar suposições e alternativas visíveis.
+- **Resultado:**
+  - Os candidatos vieram de cliques e carrinho, Solr, busca neural e da classe prevista para a query, com parada quando a taxa de Exact caiu a 5%.
+  - A concordância de `product_class` com `query_class` (Etapa 4.5) pode estar inflada, porque a seleção usou a classe prevista.
+  - Produto sem rótulo não é necessariamente irrelevante: os próprios autores admitem que a completude absoluta é impossível.
+  - Os 42.994 produtos são uma amostra do catálogo real, e as 480 queries não refletem o volume de buscas.
+  - O artigo usa notas Exact = 1,0, Partial = 0,5 e Irrelevant = 0,0 com nDCG@10.
+- **Parâmetros/seed/versões:** só células markdown mudaram; código e saídas continuam como estavam, sem reexecução.
+- **Próximo passo:** executar a revisão do notebook: corrigir `split.py` e `profiling.py`, refazer as análises afetadas e reescrever textos e gráficos. As correções do protocolo entram como nova versão do [EVALUATION.md](EVALUATION.md).
+
+### 2026-11-06: Remoção da construção do dataset do notebook
+- **O que foi feito:** removida a subseção "Como o dataset foi construído" do início de [notebooks/01_eda.ipynb](../notebooks/01_eda.ipynb). Ajustados os trechos que dependiam dela: a suposição de completude, as células das Etapas 4.5 e 5.1 e a lista do que as fontes não informam.
+- **Por quê:** a subseção confundia, e os detalhes das rodadas de seleção não mudam nenhuma decisão de avaliação ou treinamento. As consequências úteis continuam nas conclusões do notebook.
+- **Parâmetros/seed/versões:** só células markdown mudaram; código e saídas continuam como estavam, sem reexecução.
+- **Próximo passo:** executar a revisão do notebook, como registrado na entrada anterior.
+
+### 2026-11-06: Distribuição de `label` antes da Etapa 2
+- **O que foi feito:** nova tabela em [notebooks/01_eda.ipynb](../notebooks/01_eda.ipynb), logo depois da análise de pares repetidos, com a distribuição de `label` sem as cópias exatas. A tabela da Etapa 4.2 continua igual.
+- **Por quê:** mostrar o balanceamento de `label` antes das etapas seguintes.
+- **Parâmetros/seed/versões:** só as células de setup, de carga e a nova foram executadas; as saídas das demais continuam como estavam. A nova célula fica sem número de execução.
+- **Resultado:** 231.887 linhas: Partial 145.684 (62,8%), Irrelevant 60.724 (26,2%) e Exact 25.479 (11,0%).
+- **Próximo passo:** executar a revisão do notebook.
+
+### 2026-11-06: Cobertura e concentração das colunas de avaliação
+- **O que foi feito:** na Etapa 2.1 de [notebooks/01_eda.ipynb](../notebooks/01_eda.ipynb), novo gráfico de barras com os produtos com e sem avaliação; o gráfico de `average_rating` passou a usar % dos produtos com avaliação; nova seção "O que isso muda para nós". Proposta de ablação registrada no [EVALUATION.md](EVALUATION.md).
+- **Por quê:** deixar explícito o que a concentração de `rating_count` significa para o ranking.
+- **Parâmetros/seed/versões:** só as células de setup, de carga, da tabela de avaliações e dos gráficos foram executadas; as saídas das demais continuam como estavam. As células novas ou alteradas ficam sem número de execução.
+- **Resultado:**
+  - 33.542 produtos (78,0%) têm avaliação, e 9.452 (22,0%) não têm.
+  - Entre os produtos com avaliação, 84,7% têm `average_rating` de 4,5 ou 5, e os 10% com maior `rating_count` têm 79,5% das avaliações.
+  - As implicações para o ranking são interpretação, ainda não medida contra `label`.
+- **Próximo passo:** testar as colunas de avaliação na ablação do ranking.
+
+### 2026-11-06: Risco da imputação pela moda
+- **O que foi feito:** nova análise na Etapa 2.3 de [notebooks/01_eda.ipynb](../notebooks/01_eda.ipynb), que mede o erro de imputar `product_class` e `category_hierarchy` pela moda (o valor mais comum dos produtos do mesmo grupo). Os termos são definidos no notebook. Proposta registrada no [EVALUATION.md](EVALUATION.md).
+- **Por quê:** a medição anterior dava só o erro in-sample, nos mesmos produtos usados para calcular a moda, e uma imputação errada pode contradizer o que o `product_name` diz.
+- **Parâmetros/seed/versões:** dos produtos com as duas colunas, 80% formam o conjunto de treino (cálculo da moda) e 20% o conjunto held-out (medição do erro), com seeds de 0 a 4. Só as células de setup, de carga, de `modal_share` e a nova foram executadas; as saídas das demais continuam como estavam.
+- **Resultado:**
+  - `product_class`: erro held-out de 5,9%, cerca de 157 dos 2.672 produtos imputáveis.
+  - `category_hierarchy`: erro held-out de 24,3%, cerca de 335 dos 1.380 produtos imputáveis.
+  - Essas estimativas supõem a mesma taxa de erro nos produtos com nulo, o que não dá para testar.
+- **Próximo passo:** manter os nulos vazios no primeiro sistema e rever na análise de erros.
+
+### 2026-11-06: Suposição sobre produção e uso de `product_class`
+- **O que foi feito:** em [notebooks/01_eda.ipynb](../notebooks/01_eda.ipynb), registrada na Etapa 2.3 a suposição de que os nulos também existem em produção, e na Etapa 4.5 as formas de usar `product_class` sem conhecer `query_class`. Ambas também estão no [EVALUATION.md](EVALUATION.md).
+- **Por quê:** a proposta de não imputar dependia de uma suposição implícita, e a busca não recebe `query_class`.
+- **Parâmetros/seed/versões:** só células markdown mudaram; código e saídas continuam como estavam, sem reexecução.
+- **Resultado:** proposta de começar com `product_class` no texto pesquisável e como feature de semelhança no ranking. Nada disso foi medido ainda.
+- **Próximo passo:** testar essas propostas na construção do retrieval e do ranking.
+
+### 2026-11-06: `product_id` e SKUs
+- **O que foi feito:** nova análise na Etapa 2.5 de [notebooks/01_eda.ipynb](../notebooks/01_eda.ipynb): valores múltiplos por chave em `product_features`, `product_id` diferentes com o mesmo texto e presença dos valores em `product_name`. Suposição e proposta registradas no [EVALUATION.md](EVALUATION.md).
+- **Por quê:** entender se chaves com vários valores representam SKUs (versões vendáveis de um produto) dentro de um único `product_id`.
+- **Parâmetros/seed/versões:** comparação por texto exato, sem diferenciar maiúsculas de minúsculas. Só as células de setup, de carga, de `product_features` e as novas foram executadas; `import re` foi adicionado à célula de setup.
+- **Resultado:**
+  - Ao que tudo indica, um `product_id` pode incluir vários SKUs: 66,3% dos produtos com `mattresssize` têm mais de um valor, e 863 têm `queen` e `king` no mesmo `product_id`.
+  - Só 46 produtos (0,1%) têm `product_id` diferentes com `product_name` e `product_description` iguais.
+  - Nos produtos com vários valores em `mattresssize`, nenhum aparece em `product_name` em 98,1% dos casos. Entre os 604 com um único valor, ele aparece em 73,2%.
+- **Próximo passo:** testar `product_features` no texto indexado na construção do retrieval.
+
+### 2026-11-08: EDA, seção 4.7 (`rating_count`, `average_rating` e `review_count` por `label`)
+- **O que foi feito:** nova seção 4.7 em [notebooks/01_eda.ipynb](../notebooks/01_eda.ipynb): junção de `label.csv` (sem duplicatas) com as colunas de avaliação de `product.csv`, tabela por `label` e um gráfico de duas linhas (fração sem avaliação e distribuição de `rating_count`). Nenhum módulo novo. O conjunto de teste não foi usado.
+- **Resultado:**
+  - 19,1% dos pares Exact, 24,1% dos Partial e 20,5% dos Irrelevant têm produto sem avaliação.
+  - Mediana de `rating_count`: 42 em Exact, 54 em Partial, 44 em Irrelevant. Média de `average_rating`: 4,53, 4,50 e 4,52. Os três `label` quase não se diferenciam nessas colunas.
+- **Proposta:** manter as três colunas como candidatas fracas ao ranking e decidir pela ablação na validação. Não foi feita análise por query nem teste de significância.
+
+### 2026-11-08: EDA, seção 4.8 (avaliações por `label` dentro de cada query)
+- **O que foi feito:** análise dentro de cada query das colunas de avaliação contra `label`, em [notebooks/01_eda.ipynb](../notebooks/01_eda.ipynb). Novas funções em `profiling.py`: `within_query_spearman` e `bootstrap_mean_ci`, com testes. Seção 4.7 atualizada para apontar para a 4.8. Sem dependência nova: a correlação de Spearman é calculada como Pearson dos postos, porque o `Series.corr(method="spearman")` do pandas exige scipy.
+- **Parâmetros/seed/versões:** queries com pelo menos 20 pares com valor conhecido, 2.000 reamostragens, `BOOTSTRAP_SEED = 0`. Ordem do rótulo: Irrelevant (0) < Partial (1) < Exact (2). O conjunto de teste não foi usado.
+- **Resultado:** correlação média por query de 0,012 (`rating_count` em log), 0,011 (`review_count`), 0,001 (`average_rating`) e 0,017 (`has_ratings_flag`). Intervalos de 95% contêm 0, exceto `has_ratings_flag` [0,002; 0,031]. Sinal positivo em 53,0% das queries e negativo em 47,0% para `rating_count`.
+- **Proposta:** manter `rating_count`, `review_count` e `has_ratings` só para a ablação; não esperar ganho sozinhos. Pendente: separar ruído de efeito real por query e testar interações.
+
+### 2026-11-08: Revisão das regras de split
+- **O que foi feito:** revisão da seção Split do [EVALUATION.md](EVALUATION.md) a partir de uma revisão do notebook (Etapa 4.6). Nenhum código nem notebook alterado; o conjunto de teste não foi usado.
+- **Parâmetros/seed/versões:** checagens feitas com `deduplicate_labels` e `profiling.query_label_profile`; simulação de um split 70/15/15 com `seed = 0` só para inspeção.
+- **Resultado:**
+  - `n_judged` não indica dificuldade: correlação de postos com `exact_fraction` de −0,05. A mediana é 215, o p90 é 1.233 e o máximo 4.329.
+  - Só 1 query não tem Exact nem Partial (`query_id` 366, "drudge report", com um par Irrelevant). 101 queries não têm Exact. 9 queries têm 90% ou mais de Irrelevant.
+  - `Exact / (Exact + Partial)` ordena as queries quase como `exact_fraction` (correlação de postos 0,975).
+  - Com `seed = 0`, 93% dos pares do teste têm um `product_id` também julgado no treino (esperado, o catálogo é o mesmo).
+- **Propostas registradas:** excluir antes da divisão as queries sem relevante (479 restantes); manter queries quase iguais na mesma parte; trocar `exact_fraction` por `Exact / (Exact + Partial)` na estratificação, sem simulação de seeds (a checagem é no split final); distribuir o resto do arredondamento; teste de disjunção dos `query_id`; média por query e bootstrap sobre queries na avaliação.
+- **Decisão:** proporção 60/20/20, porque 15% de teste dariam cerca de 70 queries e métricas muito ruidosas.
+- **Decisão:** `seed = 87`, fixada antes de qualquer resultado de modelo.
+- **Pendente:** reescrever a Etapa 4.6 do notebook sem a simulação de pares, que não é o critério da avaliação (as métricas são médias por query).
+
+### 2026-11-08: Implementação do split (60/20/20, seed 87)
+- **O que foi feito:** `split.py` reescrito: `relevant_queries` (exclui a query sem Exact nem Partial), `stratification_groups` com `Exact / (Exact + Partial)` (cortes 0, 5%, 25%) e `n_judged` (3 faixas), `stratified_split` com o arredondamento acumulado entre grupos e `split_queries` (queries quase iguais como bloco). `uv run python -m wands_search.split` gera `splits/query_split.csv`. Testes novos em `tests/test_split.py` (35 passando no total). Conjunto de teste não avaliado: o arquivo só atribui `query_id` a partes.
+- **Parâmetros/seed/versões:** proporção 60/20/20, `seed = 87`, 479 queries.
+- **Resultado:**
+  - Queries por parte: 287 / 97 / 95. Menor grupo: 25 queries.
+  - Mediana de `n_judged`: 217 / 218 / 211. Mediana de `Exact / (Exact + Partial)`: 0,063 / 0,065 / 0,081. Mediana da fração de Irrelevant por query: 0,074 / 0,088 / 0,078.
+  - Fração de pares por `label` (Exact / Partial / Irrelevant): treino 11,2% / 64,9% / 23,9%; validação 11,6% / 58,9% / 29,5%; teste 9,8% / 61,1% / 29,1%.
+  - "leather chair" e "leather chairs" (`query_id` 151 e 26) ficaram juntas, em validação.
+- **Observação:** a validação e o teste têm mais Irrelevant que o treino (29% contra 24% dos pares). Não foi estratificado por isso (decisão acima); pode ser acaso. Não alterei a seed, que não pode ser escolhida olhando resultados.
+- **Notebook:** Etapa 4.6 reescrita sem a simulação de pares: mostra a exclusão, os 12 grupos, o split final (tabelas por parte e um gráfico de duas linhas), com conclusões, suposições e alternativas. `split.exact_share` adicionada (36 testes passando).
+- **Decisão:** ganho graduado Exact = 2, Partial = 1, Irrelevant = 0. A motivação de `exact_share` na estratificação passa a ser a mistura de Exact e Partial entre as partes, não o "nível de base" das métricas (imprecisa: uma ordem aleatória depende de `(Exact + Partial) / n_judged`). Textos corrigidos no notebook e no `EVALUATION.md`.
+- **Próximo passo:** primeiro BM25 e a métrica por query na validação.
+- **Correção de números:** os valores citados na entrada "Revisão das regras de split" (correlação −0,05, 9 queries com 90% ou mais de Irrelevant, 93% de produtos compartilhados) vinham de checagens avulsas, com 480 queries e uma divisão de inspeção com seed 0. Passaram para uma célula da Etapa 4.6, sobre as 479 queries e o split final: −0,013 (com `exact_share`), 8 queries e 94,7% / 92,7%. O `EVALUATION.md` e o notebook usam os novos.
+
+### 2026-11-08: Métricas e tabela de resultados
+- **O que foi feito:** registrado em [EVALUATION.md](EVALUATION.md) que as mesmas métricas (Recall@100, NDCG@10 e MRR@10, por query, em média) são calculadas na ordem de toda etapa: BM25, Vector, Hybrid (RRF) e Hybrid + reranker, com a latência na mesma tabela. Definições das métricas e do RRF adicionadas. Tabela de resultados refeita com essas colunas. Nenhum código nem avaliação rodados.
+- **Decisão:** NDCG@10 é a métrica principal da comparação, com o MRR@10 ao lado, tratado como métrica de ranking aplicada ao retrieval. O Recall@100 do reranker é o do Hybrid (traço na tabela), porque ele reordena os mesmos 100 candidatos.
+- **Resultado (split completo, 479 queries):**
+  - Com Exact e Partial como relevantes, a mediana é 170 relevantes por query, e 353 queries têm mais de 100, então o Recall@100 tem teto médio de 0,59 mesmo para um sistema perfeito.
+  - Com só Exact, a mediana é 10 e o teto médio é 0,92, mas 100 queries (das 479; as 101 da entrada anterior incluíam a query 366, já excluída) ficam sem relevante.
+- **Pendente:** escolher o limiar binário de Recall@100 e MRR@10.
+
+### 2026-11-08: Métricas revisadas (Capped Recall@100 e judged@10)
+- **O que foi feito:** a tabela de métricas do [EVALUATION.md](EVALUATION.md) foi reescrita: NDCG@10, MRR@10, Capped Recall@100 e judged@10 em todas as etapas (BM25 como baseline, Vetorial, Híbrido com RRF e Híbrido + reranker). O Recall@100 sem teto saiu, por causa do teto médio de 0,59 medido na entrada anterior. Definições de Capped Recall@100 e judged@10 adicionadas. "Retrieval" e "ranking" passam a indicar o que cada métrica avalia melhor, não onde é calculada. Nenhum código nem avaliação rodados.
+- **Decisão:** a única exceção na tabela é o Capped Recall@100 do reranker, igual ao do híbrido por construção.
+- **Suposição:** Exact e Partial contam como relevantes no Capped Recall@100 e no MRR@10. Pendente de confirmação, principalmente para o MRR@10.
+- **Observação:** a distribuição das queries sem Exact é quase igual nas partes (20,9% no treino, 20,6% na validação e 21,1% no teste), checada fora do notebook.
+
+### 2026-11-08: Métricas finais (NDCG@10 principal; Exact como relevante em retrieval e MRR)
+- **O que foi feito:** métricas do [EVALUATION.md](EVALUATION.md) reescritas. NDCG@10 (ganhos 2, 1 e 0; produto sem `label` = 0) é a métrica principal e cobre as 479 queries. Capped Recall@100 e MRR@10, com relevante = só Exact, usam as 379 queries com Exact (treino 227, validação 77, teste 75). Capped Recall @50 e @200 reportados junto com a latência do reranker para justificar K = 100. Secundárias: Capped Recall@100 com Exact e Partial, judged@10 e NDCG@10 só com produtos julgados. Nenhum código nem avaliação rodados.
+- **Resultado (medido fora do notebook):** 100 das 479 queries não têm Exact (20,9%), quase igual nas três partes. 74 das 379 têm mais de 100 Exact, então o teto só muda a conta nelas; o valor máximo sem teto teria média de 0,92 em @100 (0,81 em @50 e 0,97 em @200).
+- **Correção:** a especificação citava 101 queries sem Exact e n = 378; na base de 479 são 100 e 379. O texto sobre "101 ficam sem relevante" da entrada anterior e da Etapa 4.6 do notebook foi corrigido.
+- **Substitui:** a suposição anterior de Exact e Partial como relevantes em Recall@100 e MRR@10, e a proposta de produto sem `label` como irrelevante, agora decidida.
+- **Pendente:** definir exatamente o "NDCG@10 só com produtos julgados" ao implementar; K de retrieval e RRF (constante) a escolher.
+
+### 2026-11-08: Revisão do notebook e TL;DR
+- **O que foi feito:** novo TL;DR no topo de [notebooks/01_eda.ipynb](../notebooks/01_eda.ipynb), logo depois do título, com as principais descobertas, decisões e próximos passos em linguagem para leitores não técnicos. Cada ponto indica a etapa de onde vêm os números. Revisão dos textos do notebook e dos documentos:
+  - Etapa 2.4: a suposição sobre produtos sem `product_description` contradizia a conclusão logo acima; reescrita.
+  - Etapas 4.2 e 4.3: o limiar binário das métricas e as queries sem Exact aparecem como decididos, conforme o [EVALUATION.md](EVALUATION.md) (só Exact; 100 queries sem Exact entre as 479; n = 379).
+  - Etapa 5.1: produto sem rótulo com ganho 0 no NDCG@10 e judged@10 aparecem como decididos, não mais como proposta.
+  - Etapas 4.5 e 5.1: "prevista na revisão" trocado por "ainda não foi feita", para deixar claro que as correções estão pendentes.
+  - Etapas 4.7 e 4.8: `has_ratings` e `has_ratings_flag` explicados como a mesma informação.
+  - [EVALUATION.md](EVALUATION.md): a simulação de 200 seeds não está mais na Etapa 4.6; o texto agora diz isso.
+  - DEVLOG: entradas reordenadas em ordem cronológica (as de 2026-11-06 estavam no topo e da mais nova para a mais antiga). Nenhuma entrada foi apagada.
+- **Parâmetros/seed/versões:** só células markdown mudaram; código e saídas continuam como estavam, sem reexecução. O conjunto de teste não foi usado.
+- **Pendente:** a citação da literatura para *pseudo-relevance feedback* (Etapa 4.5) continua sem link, porque a fonte não pôde ser aberta nesta sessão.
+- **Próximo passo:** fechar o protocolo em [EVALUATION.md](EVALUATION.md) e construir o primeiro BM25.

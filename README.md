@@ -9,6 +9,7 @@ Requer [uv](https://docs.astral.sh/uv/).
 ```bash
 uv sync            # instala Python 3.13, dependências e o pacote wands_search
 uv run pytest      # roda os testes
+uv run python -m wands_search.split  # regenera splits/query_split.csv (seed 87)
 uv run jupyter lab # abre os notebooks em notebooks/
 ```
 
@@ -25,9 +26,10 @@ Depois, selecione o kernel **Python (ml-challenge)**. No VS Code, também dá pa
 | Caminho | Conteúdo |
 |---|---|
 | `dataset/` | Dados brutos do WANDS (somente leitura) |
-| `src/wands_search/` | Código reutilizável (`data.py`: carga, parsers de campos e deduplicação de `label.csv`; `profiling.py`: diagnósticos de qualidade; `split.py`: divisão por query; `plots.py`: estilo dos gráficos) |
+| `src/wands_search/` | Código reutilizável (`data.py`: carga, parsers de campos e deduplicação de `label.csv`; `profiling.py`: diagnósticos de qualidade; `split.py`: divisão por query em treino, validação e teste; `plots.py`: estilo dos gráficos) |
+| `splits/` | `query_split.csv`: parte (`train`, `validation` ou `test`) de cada `query_id`, gerado por `wands_search.split` |
 | `tests/` | Testes automatizados |
-| `notebooks/` | Análises exploratórias (`01_eda.ipynb`) |
+| `notebooks/` | Análises exploratórias (`01_eda.ipynb`, com um TL;DR das descobertas no topo) |
 | `docs/` | [DEVLOG](docs/DEVLOG.md) e [protocolo de avaliação](docs/EVALUATION.md) |
 
 Convenções de desenvolvimento em [CONTRIBUTING.md](CONTRIBUTING.md). Instruções para agentes de IA em [AGENTS.md](AGENTS.md); o `CLAUDE.md` só importa o `AGENTS.md` e o `CONTRIBUTING.md`.

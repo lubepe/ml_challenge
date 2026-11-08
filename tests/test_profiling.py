@@ -83,3 +83,40 @@ def test_query_label_profile_counts_labels_and_exact_fraction():
     assert profile.loc[1, "Exact"] == 0
     assert profile.loc[1, "exact_fraction"] == 0.0
 
+
+
+def test_within_query_spearman_is_computed_per_query():
+    pairs = pd.DataFrame({
+        "query_id": [1] * 4 + [2] * 4,
+        "label": ["Irrelevant", "Partial", "Exact", "Exact"] * 2,
+        "value": [1, 2, 3, 4, 4, 3, 2, 1],
+    })
+    result = profiling.within_query_spearman(pairs, "value", min_pairs=4)
+    assert result[1] > 0.9
+    assert result[2] < -0.9
+
+
+def test_within_query_spearman_drops_small_and_constant_queries():
+    pairs = pd.DataFrame({
+        "query_id": [1, 1, 2, 2, 2, 2],
+        "label": ["Exact", "Irrelevant", "Exact", "Partial", "Irrelevant", "Exact"],
+        "value": [1, 2, 5, 5, 5, 5],
+    })
+    assert profiling.within_query_spearman(pairs, "value", min_pairs=3).empty
+
+
+def test_within_query_spearman_ignores_missing_values():
+    pairs = pd.DataFrame({
+        "query_id": [1] * 5,
+        "label": ["Irrelevant", "Partial", "Exact", "Exact", "Partial"],
+        "value": [1.0, 2.0, 3.0, None, None],
+    })
+    assert profiling.within_query_spearman(pairs, "value", min_pairs=3).loc[1] == 1.0
+    assert profiling.within_query_spearman(pairs, "value", min_pairs=4).empty
+
+
+def test_bootstrap_mean_ci_brackets_the_mean_and_is_reproducible():
+    values = pd.Series([0.1, 0.2, 0.3, 0.4, 0.5])
+    low, high = profiling.bootstrap_mean_ci(values, seed=0)
+    assert low < values.mean() < high
+    assert (low, high) == profiling.bootstrap_mean_ci(values, seed=0)
