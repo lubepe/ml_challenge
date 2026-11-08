@@ -23,6 +23,10 @@ BM25_METHOD = "lucene"
 MAX_QUERY_CHARS = 500
 MAX_QUERY_TOKENS = 32
 
+# Text options of each BM25 version (see notebooks/02_bm25.ipynb, Etapa 4).
+BASELINE_TEXT = {"stem": False, "clean_features": False}
+V2_TEXT = {"stem": True, "clean_features": True}
+
 
 class InvalidQueryError(ValueError):
     """Raised when a query cannot be searched: not a string, or empty after removing spaces."""
@@ -36,20 +40,22 @@ class PreparedQuery:
     truncated: bool
 
 
-def prepare_query(query: object) -> PreparedQuery:
+def prepare_query(query: object, stem: bool = False) -> PreparedQuery:
     """Validate a raw query and turn it into tokens.
 
     - not a string, or empty or only spaces: ``InvalidQueryError``;
     - longer than ``MAX_QUERY_CHARS`` characters or ``MAX_QUERY_TOKENS`` tokens: cut, with
       ``truncated=True``;
     - only special characters (``"&/()"``): valid, with no tokens, so the search returns nothing.
+
+    ``stem`` must match the index, so that query and products go through the same rules.
     """
     if not isinstance(query, str):
         raise InvalidQueryError(f"query must be a string, got {type(query).__name__}")
     if not query.strip():
         raise InvalidQueryError("query is empty")
     truncated = len(query) > MAX_QUERY_CHARS
-    tokens = tokenize(query[:MAX_QUERY_CHARS])
+    tokens = tokenize(query[:MAX_QUERY_CHARS], stem=stem)
     if len(tokens) > MAX_QUERY_TOKENS:
         tokens, truncated = tokens[:MAX_QUERY_TOKENS], True
     return PreparedQuery(tokens=tokens, truncated=truncated)
@@ -65,18 +71,21 @@ class BM25Index:
         k1: float = BM25_K1,
         b: float = BM25_B,
         method: str = BM25_METHOD,
+        stem: bool = False,
     ):
         if len(product_ids) != len(token_lists):
             raise ValueError("product_ids and token_lists must have the same length")
         self.product_ids = np.asarray(product_ids)
+        self.stem = stem
         self.params = {"k1": k1, "b": b, "method": method}
         self._bm25 = bm25s.BM25(k1=k1, b=b, method=method)
         self._bm25.index(list(token_lists), show_progress=False)
 
     @classmethod
-    def from_texts(cls, texts: pd.Series, **params) -> "BM25Index":
+    def from_texts(cls, texts: pd.Series, stem: bool = False, **params) -> "BM25Index":
         """Build an index from a Series of texts indexed by ``product_id``."""
-        return cls(texts.index.to_list(), texts.map(tokenize).to_list(), **params)
+        tokens = texts.map(lambda value: tokenize(value, stem=stem))
+        return cls(tokens.index.to_list(), tokens.to_list(), stem=stem, **params)
 
     @property
     def vocabulary_size(self) -> int:
@@ -111,16 +120,25 @@ class BM25Index:
 
     def search(self, query: object, k: int = 100) -> pd.DataFrame:
         """Validate ``query`` and return its top ``k`` products (see ``prepare_query``)."""
-        return self.search_tokens(prepare_query(query).tokens, k)
+        return self.search_tokens(prepare_query(query, self.stem).tokens, k)
 
 
-def build_single_field_index(products: pd.DataFrame, **params) -> BM25Index:
-    """Baseline index: every field of ``text.SEARCH_FIELDS`` joined into one text per product."""
-    return BM25Index.from_texts(single_field_text(product_field_texts(products)), **params)
+def single_field_tokens(products: pd.DataFrame, stem: bool = False, clean_features: bool = False) -> pd.Series:
+    """Tokens of the single field text of each product, indexed by ``product_id``."""
+    texts = single_field_text(product_field_texts(products, clean_features=clean_features))
+    return texts.map(lambda value: tokenize(value, stem=stem))
 
 
-def timed_build(products: pd.DataFrame, **params) -> tuple[BM25Index, float]:
+def build_single_field_index(
+    products: pd.DataFrame, stem: bool = False, clean_features: bool = False, **params
+) -> BM25Index:
+    """Index over every field of ``text.SEARCH_FIELDS`` joined into one text per product."""
+    tokens = single_field_tokens(products, stem=stem, clean_features=clean_features)
+    return BM25Index(tokens.index.to_list(), tokens.to_list(), stem=stem, **params)
+
+
+def timed_build(products: pd.DataFrame, **options) -> tuple[BM25Index, float]:
     """Build the single field index and return it with the build time in seconds."""
     start = time.perf_counter()
-    index = build_single_field_index(products, **params)
+    index = build_single_field_index(products, **options)
     return index, time.perf_counter() - start

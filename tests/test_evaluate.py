@@ -86,3 +86,47 @@ def test_paired_bootstrap_requires_the_same_queries():
     b = pd.DataFrame({"m": [0.1, 0.2]}, index=[1, 3])
     with pytest.raises(ValueError):
         evaluate.paired_bootstrap(a, b, "m")
+
+
+def test_select_tuned_uses_tie_break_within_tolerance():
+    results = pd.DataFrame({
+        "k1": [0.9, 1.2, 1.5],
+        "b": [0.5, 0.5, 0.5],
+        "capped_recall@100": [0.700, 0.698, 0.650],
+        "ndcg@10": [0.60, 0.65, 0.90],
+    })
+    chosen = evaluate.select_tuned(results)
+    assert (chosen["k1"], chosen["b"]) == (1.2, 0.5)  # 0.698 is within 0.005 of 0.700; 0.650 is not
+
+
+def test_select_tuned_picks_best_metric_when_no_tie():
+    results = pd.DataFrame({"k1": [0.9, 1.2], "b": [0.5, 0.5], "capped_recall@100": [0.70, 0.60], "ndcg@10": [0.1, 0.9]})
+    assert evaluate.select_tuned(results)["k1"] == 0.9
+
+
+def test_tune_bm25_returns_one_row_per_combination():
+    tokens = pd.Series([["leather", "chair"], ["wood", "table"], ["chair", "cushion"]], index=[20, 21, 30])
+    queries = evaluate.split_queries(pd.DataFrame({"query_id": [2], "query": ["leather chair"]}),
+                                     pd.Series(["train"], index=pd.Index([2], name="query_id")), "train")
+    results, per_query = evaluate.tune_bm25(tokens, False, queries, LABELS, k1_grid=(0.9, 1.2), b_grid=(0.5, 0.75), k=10)
+    assert len(results) == 4
+    assert {"k1", "b", "capped_recall@100", "ndcg@10"} <= set(results.columns)
+    assert set(per_query) == {(0.9, 0.5), (0.9, 0.75), (1.2, 0.5), (1.2, 0.75)}
+    assert list(per_query[(0.9, 0.5)].index) == [2]
+
+
+def test_format_ci():
+    assert evaluate.format_ci(0.6534, 0.5891, 0.7183) == "0.653 [0.589; 0.718]"
+
+
+def test_compare_systems_reports_both_systems_and_the_difference():
+    index = pd.Index(range(40), name="query_id")
+    base = pd.DataFrame({"ndcg@10": [i / 50 for i in range(40)]}, index=index)
+    better = base + 0.05
+    table = evaluate.compare_systems(better, base, ["ndcg@10"], name_a="v2", name_b="baseline")
+    row = table.loc["ndcg@10"]
+    assert row["difference"] == pytest.approx(0.05)
+    assert row["interval_excludes_0"]
+    assert row["difference_ci"] == "0.050 [0.050; 0.050]"
+    assert row["share_v2_better"] == 1.0
+    assert {"v2_ci", "baseline_ci"} <= set(table.columns)

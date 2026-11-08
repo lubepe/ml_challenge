@@ -112,3 +112,28 @@ def test_index_size_properties(index):
     # 7 distinct tokens plus the empty token that bm25s adds.
     assert index.vocabulary_size == 8
     assert index.index_bytes > 0
+
+
+def test_stemmed_index_matches_singular_query_with_plural_product():
+    texts = pd.Series(["leather sofas", "wood benches", "mattresses"], index=[1, 2, 3])
+    stemmed = retrieval.BM25Index.from_texts(texts, stem=True)
+    assert stemmed.search("sofa", k=10)["product_id"].tolist() == [1]
+    assert stemmed.search("bench", k=10)["product_id"].tolist() == [2]
+    assert stemmed.search("mattress", k=10)["product_id"].tolist() == [3]
+    plain = retrieval.BM25Index.from_texts(texts)
+    assert plain.search("sofa", k=10).empty
+
+
+def test_single_field_index_with_clean_features_drops_yes_no_and_numbers():
+    products = pd.DataFrame({
+        "product_id": [1, 2],
+        "product_name": ["sofa", "lamp"],
+        "product_class": [None, None],
+        "category_hierarchy": [None, None],
+        "product_description": [None, None],
+        "product_features": ["footboard : no|width:500", "color : caramel"],
+    })
+    clean = retrieval.build_single_field_index(products, **retrieval.V2_TEXT)
+    assert clean.search("no", k=10).empty
+    assert clean.search("500", k=10).empty
+    assert clean.search("caramel", k=10)["product_id"].tolist() == [2]

@@ -1,10 +1,13 @@
-"""Shared chart style and helpers for notebooks and reports.
+"""Shared chart and table style and helpers for notebooks and reports.
 
-Charts may be read outside the notebook, so each one must explain itself: its title
-says what is measured and on which data, and a caption defines any technical term.
+Charts and tables may be read outside the notebook, so each one must explain itself: its
+title says what is measured and on which data, and a note defines any technical term.
 """
 
+import html
 import textwrap
+
+import pandas as pd
 
 import seaborn as sns
 from matplotlib.axes import Axes
@@ -69,3 +72,45 @@ def reference_line(ax: Axes, x: float, label: str, y_fraction: float = 0.93, ha:
     offset = 6 if ha == "left" else -6
     ax.annotate(label, xy=(x, y_fraction), xycoords=("data", "axes fraction"), xytext=(offset, 0),
                 textcoords="offset points", ha=ha, color=PRIMARY_INK, fontsize=9)
+
+
+def difference_plot(ax: Axes, labels: list[str], differences, lows, highs) -> None:
+    """Horizontal points with 95% intervals for paired differences, with a reference line at 0.
+
+    Intervals that exclude 0 are drawn in the primary series color; the others in a muted color.
+    """
+    positions = list(range(len(labels)))[::-1]
+    for position, difference, low, high in zip(positions, differences, lows, highs):
+        color = SERIES_1 if (low > 0 or high < 0) else MUTED_INK
+        ax.plot([low, high], [position, position], color=color, linewidth=2)
+        ax.plot([difference], [position], "o", color=color, markersize=6)
+    ax.axvline(0, color=PRIMARY_INK, linewidth=1)
+    ax.set_yticks(positions, labels)
+    ax.grid(axis="y", visible=False)
+
+
+def table(df: pd.DataFrame | pd.Series, title: str, note: str | None = None, precision: int = 1,
+          max_text_length: int = 120):
+    """Return a styled table with a title and an optional note, both shown above the rows.
+
+    Floats are rounded to ``precision`` digits, numbers use a thousands separator and texts
+    longer than ``max_text_length`` characters are cut, ending in "...".
+    """
+    frame = df.to_frame() if isinstance(df, pd.Series) else df
+
+    def shorten(value):
+        if isinstance(value, str) and len(value) > max_text_length:
+            return value[: max_text_length - 3] + "..."
+        return value
+
+    frame = frame.map(shorten)
+    caption = f"<b>{html.escape(title)}</b>"
+    if note:
+        caption += f"<br><span style='font-size:0.85em;color:{SECONDARY_INK}'>{html.escape(note)}</span>"
+    return (
+        frame.style
+        .format(precision=precision, thousands=",", na_rep="null")
+        .set_caption(caption)
+        .set_table_styles([{"selector": "caption",
+                            "props": [("caption-side", "top"), ("text-align", "left"), ("padding-bottom", "6px")]}])
+    )

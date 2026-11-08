@@ -70,3 +70,50 @@ def test_single_field_text_joins_all_fields():
         "leather", "accent", "chair", "accent", "chairs", "furniture", "living", "room", "caramel", "64", "7",
     ]
     assert text.tokenize(single.loc[8]) == ["ottoman", "soft", "ottoman"]
+
+
+@pytest.mark.parametrize(
+    ("token", "stem"),
+    [
+        ("chairs", "chair"),
+        ("tables", "table"),
+        ("bodies", "body"),
+        ("mattresses", "mattress"),
+        ("benches", "bench"),
+        ("boxes", "box"),
+        ("dishes", "dish"),
+        ("mattress", "mattress"),
+        ("glass", "glass"),
+        ("cactus", "cactus"),
+        ("toes", "toe"),
+        ("series", "sery"),
+        ("36", "36"),
+    ],
+)
+def test_s_stem_rules(token, stem):
+    assert text.s_stem(token) == stem
+
+
+def test_singular_and_plural_give_the_same_token():
+    for singular, plural in [("chair", "chairs"), ("mattress", "mattresses"), ("bench", "benches"),
+                             ("box", "boxes"), ("table", "tables"), ("body", "bodies")]:
+        assert text.s_stem(singular) == text.s_stem(plural)
+
+
+def test_tokenize_with_stem():
+    assert text.tokenize("Leather Chairs", stem=True) == ["leather", "chair"]
+
+
+@pytest.mark.parametrize(
+    ("value", "droppable"),
+    [("yes", True), ("No", True), ("64.7", True), ("600 ; 276 ; 456", True), ("1/4", True),
+     ("5 years", False), ("caramel", False), ("queen", False), ("e12", False)],
+)
+def test_droppable_feature_values(value, droppable):
+    assert text.is_droppable_feature_value(value) == droppable
+
+
+def test_clean_feature_values_text():
+    value = "color : caramel|footboard : no|weightcapacity:500|warrantylength:5 years"
+    assert text.feature_values_text(value) == "caramel no 500 5 years"
+    assert text.feature_values_text(value, clean=True) == "caramel 5 years"
