@@ -351,3 +351,12 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
 ### 2026-11-08: Intervalos de 95% como saída do notebook do BM25
 - **O que foi feito:** as diferenças com intervalo de 95% passaram a ser saídas do notebook, não só texto das conclusões. Etapa 4.2: tabela com a diferença pareada de cada combinação da grade contra a escolhida (Capped Recall@100 e NDCG@10, treino). Etapa 4.3: tabela com cada métrica do baseline e da v2 com intervalo e a diferença pareada com intervalo, e um gráfico das diferenças. Novas funções: `evaluate.compare_systems`, `evaluate.format_ci`, `plots.difference_plot`; `evaluate.tune_bm25` passou a devolver também as métricas por query de cada combinação. 142 testes passando.
 - **Correção:** as conclusões diziam "grade quase plana". Com os intervalos pareados, as diferenças são pequenas (até −0,016 de Capped Recall@100), mas 12 das 19 combinações são piores que a escolhida com intervalo que exclui 0. Texto corrigido no notebook, no DEVLOG e no EVALUATION.
+
+### 2026-11-08: BM25 v3 (chave dos valores `yes`)
+- **O que foi feito:** pedido de testar a v2 mantendo a informação dos valores `yes` de `product_features`: um par `chave : yes` entra pelo texto da chave (`upholstered : yes` vira `upholstered`). Regra registrada no [EVALUATION.md](EVALUATION.md) antes de rodar. Código: `text.feature_values_text(yes_keys=...)`, `product_field_texts(yes_keys=...)`, `retrieval.V3_TEXT`; 2 testes novos. Etapa 5 de [notebooks/02_bm25.ipynb](../notebooks/02_bm25.ipynb).
+- **Resultado:**
+  - Antes de rodar, sem `label`: 363.512 pares `yes`, 2.887 chaves, a maioria de garantia e conformidade com palavras emendadas; só 9,2% das ocorrências de tokens das chaves coincidem com tokens de queries de treino ou validação.
+  - Ajuste no treino escolheu a mesma combinação da v2 (`k1 = 1.2`, `b = 0.5`).
+  - Validação, v3 − v2: NDCG@10 +0,002 [−0,004; 0,009], Capped Recall@100 +0,005 [−0,009; 0,025]; todos os intervalos incluem 0.
+- **Decisão:** a v2 continua como BM25 de referência (mais simples, pela regra de seleção).
+- **Observação:** outra sessão trabalhou no repositório ao mesmo tempo (`embeddings.py`, `plots.table`, `notebooks/01_eda_revised.ipynb`, `evaluate.evaluate_grid`, dependências `fastembed` e `onnxruntime`). Esta entrada cobre só a v3.

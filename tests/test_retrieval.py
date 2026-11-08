@@ -137,3 +137,17 @@ def test_single_field_index_with_clean_features_drops_yes_no_and_numbers():
     assert clean.search("no", k=10).empty
     assert clean.search("500", k=10).empty
     assert clean.search("caramel", k=10)["product_id"].tolist() == [2]
+
+def test_v3_index_finds_products_by_yes_keys():
+    products = pd.DataFrame({
+        "product_id": [1, 2],
+        "product_name": ["armchair", "armchair"],
+        "product_class": [None, None],
+        "category_hierarchy": [None, None],
+        "product_description": [None, None],
+        "product_features": ["upholstered : yes", "upholstered : no"],
+    })
+    v3 = retrieval.build_single_field_index(products, **retrieval.V3_TEXT)
+    assert v3.search("upholstered", k=10)["product_id"].tolist() == [1]
+    v2 = retrieval.build_single_field_index(products, **retrieval.V2_TEXT)
+    assert v2.search("upholstered", k=10).empty

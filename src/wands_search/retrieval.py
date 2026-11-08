@@ -24,8 +24,9 @@ MAX_QUERY_CHARS = 500
 MAX_QUERY_TOKENS = 32
 
 # Text options of each BM25 version (see notebooks/02_bm25.ipynb, Etapa 4).
-BASELINE_TEXT = {"stem": False, "clean_features": False}
-V2_TEXT = {"stem": True, "clean_features": True}
+BASELINE_TEXT = {"stem": False, "clean_features": False, "yes_keys": False}
+V2_TEXT = {"stem": True, "clean_features": True, "yes_keys": False}
+V3_TEXT = {"stem": True, "clean_features": True, "yes_keys": True}
 
 
 class InvalidQueryError(ValueError):
@@ -123,17 +124,19 @@ class BM25Index:
         return self.search_tokens(prepare_query(query, self.stem).tokens, k)
 
 
-def single_field_tokens(products: pd.DataFrame, stem: bool = False, clean_features: bool = False) -> pd.Series:
+def single_field_tokens(
+    products: pd.DataFrame, stem: bool = False, clean_features: bool = False, yes_keys: bool = False
+) -> pd.Series:
     """Tokens of the single field text of each product, indexed by ``product_id``."""
-    texts = single_field_text(product_field_texts(products, clean_features=clean_features))
+    texts = single_field_text(product_field_texts(products, clean_features=clean_features, yes_keys=yes_keys))
     return texts.map(lambda value: tokenize(value, stem=stem))
 
 
 def build_single_field_index(
-    products: pd.DataFrame, stem: bool = False, clean_features: bool = False, **params
+    products: pd.DataFrame, stem: bool = False, clean_features: bool = False, yes_keys: bool = False, **params
 ) -> BM25Index:
     """Index over every field of ``text.SEARCH_FIELDS`` joined into one text per product."""
-    tokens = single_field_tokens(products, stem=stem, clean_features=clean_features)
+    tokens = single_field_tokens(products, stem=stem, clean_features=clean_features, yes_keys=yes_keys)
     return BM25Index(tokens.index.to_list(), tokens.to_list(), stem=stem, **params)
 
 

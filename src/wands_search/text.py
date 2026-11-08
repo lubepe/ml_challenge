@@ -80,25 +80,32 @@ def is_droppable_feature_value(value: str) -> bool:
     return stripped.lower() in YES_NO_VALUES or NUMERIC_VALUE.fullmatch(stripped) is not None
 
 
-def feature_values_text(value: str | None, clean: bool = False) -> str:
+def feature_values_text(value: str | None, clean: bool = False, yes_keys: bool = False) -> str:
     """Join the values of ``product_features``, dropping the keys (``color : caramel`` gives ``caramel``).
 
-    With ``clean=True``, values that are ``yes``, ``no`` or only numbers are dropped too.
+    With ``clean=True``, values that are ``yes``, ``no`` or only numbers are dropped too. With
+    ``yes_keys=True``, a pair whose value is ``yes`` contributes its key instead
+    (``upholstered : yes`` gives ``upholstered``).
     """
-    values = [val for _, val in parse_product_features(value)]
-    if clean:
-        values = [val for val in values if not is_droppable_feature_value(val)]
-    return " ".join(values)
+    parts = []
+    for key, val in parse_product_features(value):
+        if yes_keys and val.strip().lower() == "yes":
+            parts.append(key)
+        elif not (clean and is_droppable_feature_value(val)):
+            parts.append(val)
+    return " ".join(parts)
 
 
-def product_field_texts(products: pd.DataFrame, clean_features: bool = False) -> pd.DataFrame:
+def product_field_texts(products: pd.DataFrame, clean_features: bool = False, yes_keys: bool = False) -> pd.DataFrame:
     """Searchable text of each field in ``SEARCH_FIELDS``, one row per ``product_id``.
 
     Missing values become empty strings, and ``product_features`` keeps only its values
-    (without ``yes``, ``no`` and numeric values when ``clean_features=True``).
+    (see ``feature_values_text`` for ``clean_features`` and ``yes_keys``).
     """
     texts = products.set_index("product_id")[SEARCH_FIELDS].copy()
-    texts["product_features"] = texts["product_features"].map(lambda value: feature_values_text(value, clean_features))
+    texts["product_features"] = texts["product_features"].map(
+        lambda value: feature_values_text(value, clean_features, yes_keys)
+    )
     return texts.fillna("").astype(str)
 
 

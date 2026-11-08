@@ -117,3 +117,9 @@ def test_clean_feature_values_text():
     value = "color : caramel|footboard : no|weightcapacity:500|warrantylength:5 years"
     assert text.feature_values_text(value) == "caramel no 500 5 years"
     assert text.feature_values_text(value, clean=True) == "caramel 5 years"
+
+
+def test_yes_keys_replace_yes_values_with_their_key():
+    value = "upholstered : yes|footboard : no|color : caramel|width:500"
+    assert text.feature_values_text(value, clean=True, yes_keys=True) == "upholstered caramel"
+    assert text.feature_values_text(value, clean=True) == "caramel"
