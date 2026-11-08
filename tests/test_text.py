@@ -1,5 +1,6 @@
 import math
 
+import pandas as pd
 import pytest
 
 from wands_search import text
@@ -35,3 +36,37 @@ def test_tokenize_without_tokens(value):
 
 def test_strip_accents():
     assert text.strip_accents("décor café") == "decor cafe"
+
+
+def make_products():
+    return pd.DataFrame({
+        "product_id": [7, 8],
+        "product_name": ["Leather Accent Chair", "Ottoman"],
+        "product_class": ["Accent Chairs", None],
+        "category_hierarchy": ["Furniture / Living Room", None],
+        "product_description": [None, "soft ottoman"],
+        "product_features": ["color : caramel|overallwidth-sidetoside:64.7", None],
+        "rating_count": [1.0, None],
+    })
+
+
+def test_feature_values_text_drops_keys():
+    assert text.feature_values_text("color : caramel|overallwidth-sidetoside:64.7") == "caramel 64.7"
+    assert text.feature_values_text(None) == ""
+
+
+def test_product_field_texts_one_row_per_product_and_empty_for_missing():
+    texts = text.product_field_texts(make_products())
+    assert list(texts.index) == [7, 8]
+    assert list(texts.columns) == text.SEARCH_FIELDS
+    assert texts.loc[7, "product_features"] == "caramel 64.7"
+    assert texts.loc[8, "product_class"] == ""
+    assert texts.loc[7, "product_description"] == ""
+
+
+def test_single_field_text_joins_all_fields():
+    single = text.single_field_text(text.product_field_texts(make_products()))
+    assert text.tokenize(single.loc[7]) == [
+        "leather", "accent", "chair", "accent", "chairs", "furniture", "living", "room", "caramel", "64", "7",
+    ]
+    assert text.tokenize(single.loc[8]) == ["ottoman", "soft", "ottoman"]

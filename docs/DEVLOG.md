@@ -298,3 +298,25 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
   - Vocabulário do campo único: 54.416 tokens. Queries: mediana de 3 tokens, máximo 11.
   - 33 tokens de query não existem no catálogo, a maioria erros de digitação (`ligth`, `foutains`, `pedistole`). A EDA citava 36 sem os valores de `product_features`. Uma query não tem nenhum token no catálogo: `minnestrista` (`query_id` 383); o BM25 não vai retornar nada para ela.
 - **Próximo passo:** etapa 3, `retrieval.py`.
+
+### 2026-11-08: Notebook do BM25, Etapa 1 (o texto que o BM25 vai indexar)
+- **O que foi feito:** novo [notebooks/02_bm25.ipynb](../notebooks/02_bm25.ipynb), com a Etapa 1: um produto campo a campo, tamanho de cada campo em tokens, o que há nos valores de `product_features` e as queries de treino e validação contra o vocabulário do catálogo. Novas funções em `text.py`: `SEARCH_FIELDS`, `feature_values_text`, `product_field_texts` e `single_field_text`, que o `retrieval.py` vai usar, com 3 testes (78 passando). Executado do início ao fim.
+- **Por quê:** os números da entrada anterior vinham de um comando avulso no terminal; agora o notebook os reproduz.
+- **Parâmetros/seed/versões:** catálogo inteiro (sem `label`). Queries só de treino e validação (384): o texto das queries de teste não é olhado, para não influenciar escolhas.
+- **Resultado:**
+  - `product_features` é 50,9% dos tokens do campo único e `product_description` 38,9% (juntos, 89,8%); `product_name` é 3,9%. Campo único: mediana de 159 tokens por produto, p95 300, máximo 1.465.
+  - Em `product_features`, 31,4% dos tokens são `yes`/`no` e 18,4% números; `no` tem 788.090 ocorrências. Nenhuma query de treino ou validação tem `yes` ou `no`.
+  - 26 das 384 queries têm algum token fora do catálogo (erros de digitação, marcas, palavras juntas como `7qt`); só `minnestrista` (`query_id` 383, validação) não tem nenhum.
+- **Correção:** a entrada "Processamento de texto" citava 33 tokens fora do catálogo nas 480 queries, incluindo as de teste. O número de referência passa a ser o do notebook, só com treino e validação.
+- **Variantes registradas para o ajuste (no treino):** retrieval por campo; remover `yes`/`no` ou trocar `chave : yes` pela chave; remover valores só numéricos; `product_features` fora do campo único. Correção ortográfica só se a análise de erros pedir.
+- **Próximo passo:** Etapa 2 do notebook, índice `bm25s` e busca (`retrieval.py`).
+
+### 2026-11-08: Índice BM25 e busca (etapa 3 do BM25)
+- **O que foi feito:** dependência `bm25s` 0.3.16 adicionada (`uv add bm25s`). Novo `src/wands_search/retrieval.py`: `prepare_query` (validação da query), `BM25Index` (índice sobre um texto por produto, com `scores` para todos os produtos e `search` com os K primeiros) e `build_single_field_index` (baseline). 20 testes novos em `tests/test_retrieval.py`, incluindo a nota de um exemplo calculada pela fórmula (98 passando). Etapa 2 de [notebooks/02_bm25.ipynb](../notebooks/02_bm25.ipynb): custo de indexação, dois exemplos de treino com `label`, entradas inválidas e latência. Executado do início ao fim.
+- **Parâmetros/seed/versões:** `k1 = 1.2`, `b = 0.75`, variante `lucene` (padrão do `bm25s`, sem o fator `k1 + 1`, que não muda a ordem). Empates desfeitos pelo menor `product_id`. Limites da query: 500 caracteres e 32 tokens, com corte em vez de erro. Um token repetido na query conta a cada ocorrência (comportamento do `bm25s`). O teste não foi usado: exemplos e latência só com queries de treino e validação.
+- **Entradas inválidas:** não texto, vazia ou só espaços geram `InvalidQueryError`; só caracteres especiais ou sem token no catálogo retornam lista vazia; query longa é cortada (`truncated = True`). Escrita não latina e emoji são descartados pela tokenização (só letras e dígitos ASCII).
+- **Resultado:**
+  - Indexação de 10 a 11 s em três execuções (tokenização é o passo mais lento); 4.150.707 pares (token, produto); 33,6 MB em memória; vocabulário de 54.417 tokens (inclui o token vazio do `bm25s`).
+  - Latência do retrieval com K = 100: abaixo de 1 ms no p50 e entre 2,5 e 3,5 ms no p95, em três execuções, macOS x86_64.
+  - Exemplos de treino: em `tye dye duvet cover` (`tye` fora do catálogo), 5 dos 10 primeiros são Exact; em `pedistole sink`, só `sink` conta, e os 10 primeiros são acessórios de pia (5 Irrelevant, 5 sem `label`), com notas quase empatadas.
+- **Próximo passo:** etapa 4, `evaluate.py` (avaliação por query, bootstrap, latência, bloqueio do teste), e a Etapa 3 do notebook com o BM25 na validação.
