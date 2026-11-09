@@ -626,3 +626,33 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
   - Todos os sistemas sobem do validation set para o test set (de +0,023 a +0,097), na mesma ordem, exceto que a BM25 v2 + reranker passa o Híbrido.
 - **Registro:** data, resultados e seis linhas na tabela de resultados do [EVALUATION.md](EVALUATION.md). A escolha não muda.
 - **Notebook 04:** a Etapa 8 foi retirada e o cabeçalho volta a dizer que o test set não é usado, apontando para o notebook 06.
+
+### 2026-11-09: Error analysis do sistema escolhido (notebook 07)
+- **O que foi feito:**
+  - `notebooks/07_error_analysis.ipynb`, só no validation set (97 queries). Cada etapa diz o que é analisado, por que, como (metodologia) e o impacto.
+  - `metrics.oracle_ndcg_at_k`: o melhor NDCG@10 possível com os 100 candidates, que separa a perda do retrieval da perda do ranking.
+  - `error_analysis.py`, com 13 testes novos em `tests/test_error_analysis.py`:
+    - etapa com a maior perda por query;
+    - comparação de `query_class` com `product_class`;
+    - busca de atributos em `product_features`;
+    - pares de produtos quase idênticos (TF-IDF dos cinco fields).
+- **Resultado (validation set):**
+  - **Retrieval ou ranking:** o oracle chega a 0,933 e o sistema a 0,776. O retrieval perde 0,067, e o ranking perde 0,156 (0,186 sem o reranker). Em 39 das 49 queries com NDCG@10 < 0,9, a maior parte da perda está no ranking.
+  - **Produtos sem `label`:** entre os produtos julgados do top 10 com a mesma classe da query, só 0,9% são Irrelevant. Sem os produtos sem `label`, o NDCG@10 sobe de 0,776 para 0,831. O 0,776 é provavelmente um piso.
+  - **Typos:** com as 5 queries corrigidas, o sistema traz produtos que não foram julgados. O ganho de um corretor não pode ser medido com estes `label`.
+  - **Pares quase idênticos (cosine ≥ 0,95):** 5,6% têm `label` diferentes, contra 34,4% de todos os pares da mesma query, e nenhum é Exact × Irrelevant.
+  - **Categorias das 49 queries, com leitura de todos os fields:**
+    - `unexplained_labels`: 21,1% da perda;
+    - `wrong_product_type`: 20,6% (inclui "carpet 5x6", a hipótese do notebook 05);
+    - `typo`: 11,5%;
+    - `pooling_bias`: 10,5%;
+    - `vague_query`: 10,4%;
+    - `attribute_not_met`: 8,7%;
+    - `proper_name`: 8,6%;
+    - `compound_query`: 4,4%.
+  - **`unexplained_labels`:** nenhum field explica por que os produtos mal colocados são Partial e não Exact. Fica registrado como limitação do dataset, sem hipótese sobre a causa.
+- **Próximos passos sugeridos (não feitos):**
+  - features do reranker que comparem o tipo de produto da query com `product_class`;
+  - features de match de atributo com os key:value pairs de `product_features`;
+  - corretor ortográfico.
+- O test set não foi usado.

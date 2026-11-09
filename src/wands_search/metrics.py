@@ -99,6 +99,19 @@ def union_capped_recall_at_k(
     return capped_recall_at_k(best_first, labels, k=k, relevant=relevant)
 
 
+def oracle_ndcg_at_k(candidates: Sequence[int], labels: QueryLabels, k: int = 10) -> float:
+    """Best NDCG@k that any ordering of ``candidates`` can reach.
+
+    The candidates are sorted by gain (Exact, then Partial, then the rest), so the value is the
+    ceiling that a ranking step gets from the retrieval: ``1 - oracle`` is the loss of the
+    retrieval and ``oracle - ndcg`` is the loss of the ranking. NaN when the query has no
+    product with positive gain.
+    """
+    _check_ranking(candidates)
+    best_first = sorted(candidates, key=lambda product_id: -GAINS.get(labels.get(product_id), 0))
+    return ndcg_at_k(best_first, labels, k)
+
+
 def judged_at_k(ranking: Sequence[int], labels: QueryLabels, k: int = 10) -> float:
     """Share of the returned products in the top k that have a label for the query.
 
