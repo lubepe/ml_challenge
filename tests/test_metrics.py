@@ -156,3 +156,12 @@ def test_union_capped_recall_uses_only_the_first_depth_products():
 
 def test_union_capped_recall_is_nan_without_exact():
     assert math.isnan(metrics.union_capped_recall_at_k([[1]], {1: "Partial"}, k=100))
+
+
+def test_evaluate_run_extra_ndcg_cutoffs():
+    run = {1: [1, 2, 3]}
+    labels = {1: {1: "Partial", 3: "Exact"}}
+    per_query = metrics.evaluate_run(run, labels, extra_ndcg_cutoffs=(1, 5))
+    assert per_query.loc[1, "ndcg@1"] == pytest.approx(1 / 2)
+    assert per_query.loc[1, "ndcg@5"] == pytest.approx(metrics.ndcg_at_k([1, 2, 3], labels[1], 5))
+    assert "ndcg@5" not in metrics.evaluate_run(run, labels).columns

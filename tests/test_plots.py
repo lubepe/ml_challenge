@@ -53,3 +53,13 @@ def test_interval_dot_plot_rejects_more_systems_than_colors():
         pass
     finally:
         plt.close(fig)
+
+
+def test_system_interval_plot_highlights_one_system():
+    fig, ax = plt.subplots()
+    plots.system_interval_plot(ax, ["a", "b"], [0.5, 0.7], [0.4, 0.6], [0.6, 0.8], highlight="b")
+    positions = {tick.get_text(): y for tick, y in zip(ax.get_yticklabels(), ax.get_yticks())}
+    assert positions["a"] > positions["b"]
+    markers = [line.get_marker() for line in ax.get_lines() if line.get_marker() not in (None, "None", "")]
+    assert markers == ["o", "s"]
+    plt.close(fig)

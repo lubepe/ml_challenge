@@ -10,8 +10,24 @@ Requer [uv](https://docs.astral.sh/uv/).
 uv sync            # instala Python 3.13, dependências e o pacote wands_search
 uv run pytest      # roda os testes
 uv run python -m wands_search.split  # regenera splits/query_split.csv (seed 87)
+uv run python -m wands_search.train_reranker  # treina e salva os rerankers em models/ (alguns minutos no CPU)
 uv run jupyter lab # abre os notebooks em notebooks/
 ```
+
+### Buscar produtos
+
+A busca do sistema escolhido (hybrid search + reranker sem o cross-encoder) fica em `notebooks/05_search.ipynb`: troque `QUERY` na Etapa 1.1 e execute a célula. Também dá para usar direto em Python:
+
+```python
+from wands_search import data, search
+
+pipeline = search.SearchPipeline.load(data.load_products())  # cerca de 40 s com os embeddings em cache
+response = pipeline.search("leather accent chair", k=10)
+response.results            # rank, product_id, product_name, product_class, score
+response.retrieval_ms, response.ranking_ms
+```
+
+Entradas inválidas (texto vazio, só espaços ou que não é texto) levantam `retrieval.InvalidQueryError`; só caracteres especiais devolve 0 resultados; texto com mais de 500 caracteres é cortado (`response.truncated`). Sem os embeddings dos produtos em `cache/embeddings/`, a primeira carga os gera, o que leva cerca de 40 min no CPU.
 
 Para executar os notebooks no VS Code ou em outro Jupyter, registre o kernel do ambiente uma vez:
 
@@ -26,11 +42,12 @@ Depois, selecione o kernel **Python (ml-challenge)**. No VS Code, também dá pa
 | Caminho | Conteúdo |
 |---|---|
 | `dataset/` | Dados brutos do WANDS (somente leitura) |
-| `src/wands_search/` | Código reutilizável (`data.py`: carga, parsers de campos e deduplicação de `label.csv`; `profiling.py`: diagnósticos de qualidade; `split.py`: divisão por query em treino, validação e teste; `metrics.py`: métricas de avaliação por query; `text.py`: tokenização comum a queries e produtos e texto pesquisável de cada campo; `retrieval.py`: índice BM25 (`bm25s`), busca, validação da query e hybrid search (RRF); `embeddings.py`: semantic search com embeddings de `BAAI/bge-small-en-v1.5` (`fastembed`, ONNX Runtime, sem `torch`) e cache dos embeddings dos produtos; `evaluate.py`: execução de um sistema numa parte do split, métricas, bootstrap e latência (o teste fica bloqueado); `plots.py`: estilo dos gráficos e tabelas) |
+| `src/wands_search/` | Código reutilizável (`data.py`: carga, parsers de campos e deduplicação de `label.csv`; `profiling.py`: diagnósticos de qualidade; `split.py`: divisão por query em treino, validação e teste; `metrics.py`: métricas de avaliação por query; `text.py`: tokenização comum a queries e produtos e texto pesquisável de cada campo; `retrieval.py`: índice BM25 (`bm25s`), busca, validação da query e hybrid search (RRF); `embeddings.py`: semantic search com embeddings de `BAAI/bge-small-en-v1.5` (`fastembed`, ONNX Runtime, sem `torch`) e cache dos embeddings dos produtos; `evaluate.py`: execução de um sistema numa parte do split, métricas, bootstrap e latência (o teste fica bloqueado); `systems.py`: BM25 v2, semantic search e hybrid search com os parâmetros escolhidos no treino; `ranking.py`: candidatos do reranker, exemplos de treino e lista final; `features.py`: features dos pares (query, candidato) e cross-encoder `Xenova/ms-marco-MiniLM-L-6-v2` (`fastembed`); `reranker.py`: LambdaMART (`lightgbm`), tuning por GroupKFold (`scikit-learn`), ablations, latência do ranking e leitura dos modelos salvos; `train_reranker.py`: treino dos modelos finais no train set; `search.py`: busca de ponta a ponta com o modelo salvo e tratamento de entradas inválidas; `plots.py`: estilo dos gráficos e tabelas) |
 | `splits/` | `query_split.csv`: parte (`train`, `validation` ou `test`) de cada `query_id`, gerado por `wands_search.split` |
 | `tests/` | Testes automatizados (não baixam o embedding model) |
-| `cache/` | Fora do git. O embedding model baixado (`cache/fastembed/`) e os embeddings dos produtos (`cache/embeddings/`), gerados na primeira execução do `03_semantic_hybrid.ipynb`: cerca de 5 min para o texto curto e 32 min para o longo, num CPU Intel i9 |
-| `notebooks/` | Análises exploratórias (`01_eda.ipynb`, com um TL;DR das descobertas no topo, e `01_eda_revised.ipynb`, cópia revisada para legibilidade) e retrieval lexical (`02_bm25.ipynb`, e `02_bm25_revised.ipynb`, cópia revisada para legibilidade); semantic search e hybrid search (`03_semantic_hybrid.ipynb`) |
+| `cache/` | Fora do git. O embedding model baixado (`cache/fastembed/`) e os embeddings dos produtos (`cache/embeddings/`), gerados na primeira execução do `03_semantic_hybrid.ipynb`: cerca de 5 min para o texto curto e 32 min para o longo, num CPU Intel i9. O cross-encoder do reranker (cerca de 80 MB) também é baixado em `cache/fastembed/` |
+| `notebooks/` | Análises exploratórias (`01_eda.ipynb`, com um TL;DR das descobertas no topo, e `01_eda_revised.ipynb`, cópia revisada para legibilidade) e retrieval lexical (`02_bm25.ipynb`, e `02_bm25_revised.ipynb`, cópia revisada para legibilidade); semantic search e hybrid search (`03_semantic_hybrid.ipynb`); reranker (`04_reranker.ipynb`, cerca de 20 min do início ao fim no CPU: o cross-encoder e o tuning por GroupKFold dominam); busca com o sistema escolhido (`05_search.ipynb`) |
+| `models/` | Rerankers treinados por `wands_search.train_reranker`: um arquivo do LightGBM (`.txt`) e um de metadados (`.json`: retrieval, features, hiperparâmetros, versões) por modelo. O sistema escolhido é `hybrid_reranker_no_cross_encoder`. Carregados com `reranker.load_model` |
 | `docs/` | [DEVLOG](docs/DEVLOG.md) e [protocolo de avaliação](docs/EVALUATION.md) |
 
 Convenções de desenvolvimento em [CONTRIBUTING.md](CONTRIBUTING.md). Instruções para agentes de IA em [AGENTS.md](AGENTS.md); o `CLAUDE.md` só importa o `AGENTS.md` e o `CONTRIBUTING.md`.

@@ -458,3 +458,153 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
 - **Motivo:** as conclusões misturavam três comparações (semantic × BM25 v2, hybrid × BM25 v2, hybrid × semantic) e dois conjuntos de queries (validation set; train + validation), e a frase "as queries justificam a BM25" sugeria a BM25 sozinha. A leitura parecia contraditória.
 - **O que mudou (só markdown, sem reexecução):** a Etapa 7.2 separa as três comparações, diz que as 384 queries são descritivas e otimistas, e explica que a cobertura hybrid × BM25 v2 (+0,019 nas 384 queries, +0,008 no validation set) vai no mesmo sentido nos dois conjuntos. O TL;DR passa a começar pela hybrid search como melhor retrieval medido, com as comparações do validation set, e diz que a BM25 fica como componente da hybrid search. Também registra que, pela regra de seleção, hybrid e semantic empatam no NDCG@10 do validation set.
 - **Gráfico novo na Etapa 6.1:** os três sistemas lado a lado em cada métrica, com o intervalo de 95% do bootstrap (`plots.interval_dot_plot`, com 2 testes; `plots.SERIES_3` = `#1baf7a`, a terceira posição da paleta categórica, validada com o script da skill de visualização: passa em separação para daltonismo, mas tem contraste 2,74:1 com o fundo, por isso cada sistema tem também um formato de marcador próprio e a tabela com os mesmos valores fica logo acima). Notebook reexecutado do início ao fim; tempos citados atualizados para a execução salva.
+
+### 2026-11-08: Plano do reranker registrado antes de qualquer número
+- **O que foi feito:** decisões do reranker registradas em [EVALUATION.md](EVALUATION.md), seção "Reranker (learning-to-rank)", antes de treinar qualquer modelo. Só documentação; nenhum código e nenhum número.
+- **Decisões:**
+  - LambdaMART no LightGBM, `label_gain = [0, 1, 2]`, um modelo por retrieval (BM25 v2 e Híbrido). Fonte atualizada: Qin et al. (ICLR 2021) e o survey de Lucchese, Nardini e Bruch (2023), com Burges (2010) só como origem do método.
+  - Exemplos de treino: os 100 primeiros candidatos de cada query de treino. Candidatos sem `label` têm duas variantes, só julgados ou ganho 0, escolhidas no treino.
+  - Cinco grupos de features: retrieval, text, cross-encoder, numeric e query.
+  - Cross-encoder pré-treinado `Xenova/ms-marco-MiniLM-L-6-v2`, sem fine-tuning, pelo `fastembed`, como feature e como baseline de referência fora da seleção final.
+  - Tuning por GroupKFold (5 folds, `RANKER_SEED = 0`) numa grade fixa de 72 combinações por retrieval.
+  - Ablations sem cada grupo e sem as colunas de rating, só na validação.
+- **Próximo passo:** tabela de candidatos do train set (`ranking.py` + testes), com a contagem de candidatos com e sem `label`.
+
+### 2026-11-08: Reranker, Etapa 2: tabela de candidatos do train set
+- **O que foi feito:**
+  - `systems.py` monta a BM25 v2, a semantic search e a hybrid search com os parâmetros escolhidos no treino, que antes ficavam só nas células do notebook 03.
+  - `ranking.py` tem três funções: `candidate_table` (100 primeiros por query, com `label` e ganho), `training_examples` (variantes `drop` e `zero` para candidatos sem `label`) e `rerank` (reordena os 100 primeiros e mantém o resto na ordem do retrieval).
+  - 13 testes novos; 199 passando.
+- **Conferência:** NDCG@10 de treino de 0,721 (BM25 v2) e 0,763 (Híbrido), iguais aos registrados.
+- **Resultado (287 queries de treino, 100 primeiros candidatos):**
+  - BM25 v2: 28.438 candidatos, dos quais 22,5% Exact, 43,2% Partial, 4,7% Irrelevant e 29,6% sem `label`. Seis queries trazem menos de 100 produtos.
+  - Híbrido: 28.700 candidatos, dos quais 23,1% Exact, 45,0% Partial, 4,2% Irrelevant e 27,6% sem `label`.
+  - A fração sem `label` cresce com a posição: de 18% (BM25 v2) e 14% (Híbrido) nos 10 primeiros para 36% e 35% nas posições 51 a 100.
+  - Ficam fora do treino 5 queries (BM25 v2) e 4 (Híbrido) sem nenhum candidato Exact ou Partial.
+  - Os dois conjuntos compartilham 20.541 pares (query, produto).
+  - O test set não foi usado.
+- **Leitura:** na variante `drop`, os únicos exemplos negativos são os Irrelevant, menos de 5% dos candidatos, e o modelo aprende quase só a separar Exact de Partial. Na variante `zero`, os produtos sem `label` viram os principais exemplos negativos.
+- **Próximo passo:** features (`features.py`).
+
+### 2026-11-08: Reranker, Etapa 3: features
+- **O que foi feito:**
+  - `features.py`: `FeatureBuilder` calcula as 30 features dos cinco grupos (retrieval, text, cross_encoder, numeric, query) para os candidatos de uma query. `FastEmbedCrossEncoder` envolve o cross-encoder. `FEATURE_GROUPS` define os grupos da ablation.
+  - 11 testes novos; 210 passando.
+  - Dependências: `lightgbm` 4.7.0, `scikit-learn` 1.9.1.
+  - Detalhes da implementação em [EVALUATION.md](EVALUATION.md).
+- **Resultado (train set, união dos candidatos dos dois retrievals, 36.597 pares (query, produto)):**
+  - **Cross-encoder:** a mediana da nota separa bem os `label`: Exact 3,0; Partial −1,3; Irrelevant −4,9; sem `label` −8,3. Entre todas as features, é a maior diferença entre Exact e Partial.
+  - **Rating:** a mediana de `rating_count` é um pouco menor nos Exact (log 2,71) que nos Irrelevant (3,22). Mais avaliações não indicam mais relevância nestes candidatos.
+  - **number_match:** null em 91,6% dos pares (queries sem número). Nas queries com número, a mediana é 1,0 nos Exact e 0 nos outros `label`.
+  - **Latência das features, na execução salva** (Mac Intel, CPU, uma execução): p50 de 619 ms e p95 de 1.278 ms por query, com cerca de 128 produtos. Sem o cross-encoder e com 100 produtos, p50 de 43 ms e p95 de 73 ms. O cross-encoder domina o custo.
+  - O test set não foi usado.
+- **Próximo passo:** tuning por GroupKFold e treino (Etapa 4).
+
+### 2026-11-08: Capped Recall@100 com Exact e Partial no notebook 03
+- **Motivo:** a métrica secundária do protocolo era calculada por query (`metrics.query_metrics`), mas ficou fora da lista `METRICS` do notebook 03 e da tabela do [EVALUATION.md](EVALUATION.md).
+- **O que foi feito:** `capped_recall@100_exact_partial` entrou em `METRICS` (tabelas, comparações pareadas e gráficos das Etapas 3, 4, 5 e 6) e na tabela de métricas do notebook; notas de tabelas e gráficos corrigidas; notebook reexecutado. Nenhuma regra de escolha usa a métrica, então nenhuma decisão muda.
+- **Resultado (validação):** BM25 v2 0,661; Vetorial 0,660 (−0,001 [−0,033; 0,033]); Híbrido 0,694, acima dos dois com intervalo que exclui 0 (+0,033 [0,015; 0,052] e +0,034 [0,015; 0,052]). Com Partial também relevante, a vantagem de cobertura do Híbrido sobre a BM25 v2 aparece com clareza; só com Exact (Etapa 6.1), não.
+- **Latência:** uma das execuções desta etapa rodou com a máquina ocupada (Vetorial com p50 de 13,5 ms, contra 7,3 a 8,2 ms nas outras); as faixas do EVALUATION.md passam a separar as duas condições.
+
+### 2026-11-08: Reranker, Etapa 4: tuning por GroupKFold no train set
+- **O que foi feito:**
+  - `reranker.py`: treino do LambdaMART (LightGBM), folds por query, `cross_validate`, `summarize_cv`, `select_combination` e `rerank_run`.
+  - 7 testes novos; 217 passando.
+  - Rodados 72 combinações × 5 folds nos dois retrievals, cerca de 12 minutos no total. As features dos 36.597 pares levam cerca de 2 minutos, quase todo o tempo no cross-encoder.
+  - Decidido antes de qualquer número: a latência não entra na regra de seleção, porque depende da máquina ([EVALUATION.md](EVALUATION.md)).
+- **Resultado (fora do fold, 287 queries de treino):**
+  - Configuração escolhida nos dois retrievals: `zero`, 15 folhas, `learning_rate` 0,1, 100 árvores.
+  - NDCG@10: BM25 v2 de 0,721 para 0,784; Híbrido de 0,763 para 0,794.
+  - **A `zero` vence no NDCG@10 e a `drop` no condensed NDCG@10.** O ganho da `zero` acompanha o judged@10 (+0,06 a +0,08). No Híbrido, a `zero` não melhora o condensed NDCG@10 (−0,007 [−0,016; 0,002]) nem o MRR@10, e a `drop` não melhora nada.
+  - Leitura e números completos em [EVALUATION.md](EVALUATION.md).
+  - O validation set e o test set não foram usados.
+- **Próximo passo:** conferir à mão, no train set, os produtos sem `label` que a `zero` tira do topo e os que ela põe no topo; depois, a validação (Etapa 5).
+
+### 2026-11-08: Reranker: comparações extras registradas e conferência manual dos produtos sem `label`
+- **Registrado antes da validação ([EVALUATION.md](EVALUATION.md)):** baseline pointwise (LightGBM com `objective = regression`, mesma configuração) e ablation sem as features de embedding (`features.EMBEDDING_FEATURES`). Código e 2 testes; 219 passando.
+- **Conferência (Híbrido, variante `zero`, fora do fold, 287 queries de treino):**
+  - Saem dos 10 primeiros 236 produtos sem `label` e entram 99; saldo de −137, cerca de 0,5 por query.
+  - Mediana do `cross_encoder_score` dos produtos sem `label` que saem: −5,96, perto da dos Irrelevant que saem (−6,25) e bem abaixo da dos Partial que saem (−1,27).
+- **Leitura qualitativa de 10 queries sorteadas (`seed = 0`), uma pessoa, sem `label`:**
+  - Cerca de metade dos produtos sem `label` que saem está claramente fora do assunto, como um apanhador de sonhos para "day bed indian" e uma poltrona de couro para "milk cow chair".
+  - A outra metade parece relevante, como "karina black outdoor wall lantern" para "outdoor light fixtures" e sofás de pátio para "modern outdoor furniture".
+  - As duas explicações da Etapa 4 aparecem: o modelo tira do topo produtos fora do assunto e também produtos provavelmente relevantes que não foram julgados.
+  - Contraexemplo: em "milk cow chair", o modelo põe no topo três produtos Irrelevant com "milk cow" no texto (bandeira, caneca, jarra).
+- **Próximo passo:** validação (Etapa 5).
+
+### 2026-11-08: Reranker: BM25 v2 + reranker sem features de embedding e comparações do cross-encoder
+- **Decisões ([EVALUATION.md](EVALUATION.md)), antes de qualquer número de validação do reranker:**
+  - A BM25 v2 + reranker usa as 25 features fora de `features.EMBEDDING_FEATURES` e não roda o modelo de embeddings na busca (`query_features(..., use_embeddings=False)`). Motivo: cada sistema é definido pelos componentes que usa, e com essas features ela seria, na prática, um sistema híbrido.
+  - Ablation nova: a BM25 v2 + reranker com as features de embedding acrescentadas.
+  - O ganho do cross-encoder é lido em três comparações; a nova compara os dois sistemas, ambos sem o cross-encoder.
+  - Código: `features.LEXICAL_RERANKER_FEATURES` e um teste novo; 220 passando.
+- **Tuning refeito (BM25 v2, 25 features, 287 queries de treino, fora do fold):**
+  - Escolhida: `zero`, 15 folhas, `learning_rate` 0,1, `min_data_in_leaf` 50, 100 árvores.
+  - NDCG@10 de 0,721 (ordem da BM25 v2) para 0,778 (+0,056 [0,039; 0,075]).
+  - Condensed NDCG@10: −0,002 [−0,012; 0,007]. judged@10: +0,089.
+  - O mesmo padrão do Híbrido.
+  - O validation set e o test set não foram usados.
+- **Próximo passo:** validação (Etapa 5).
+
+### 2026-11-08: Reranker, Etapas 5 e 6: validação e ablations
+- **O que foi feito:**
+  - Uma execução no validation set (97 queries), com os modelos finais treinados em todo o train set nas configurações do GroupKFold.
+  - Avaliados os dois rerankers, as referências (pointwise e cross-encoder sozinho), as ablations registradas, NDCG@5 e @15 como sensibilidade, e a latência do ranking.
+  - Correção antes dos resultados: `rerank_run` perdia a query de validação sem resultados na BM25 v2 (`minnestrista`). O reranker seria avaliado em 96 queries e a ordem do retrieval em 97. Agora a query entra com lista vazia. Um teste novo; 221 passando. O train set não tinha esse caso.
+- **Resultado:** números completos em [EVALUATION.md](EVALUATION.md).
+  - BM25 v2 + reranker: NDCG@10 de 0,744 (+0,091 sobre a BM25 v2).
+  - Híbrido + reranker: 0,772 (+0,025 sobre o Híbrido), o maior NDCG@10 dos cinco sistemas.
+  - Nos dois, o condensed NDCG@10 não muda: o ganho vem de trazer ao topo produtos com `label`, como no treino.
+  - O Híbrido + reranker supera a BM25 v2 + reranker também no condensed NDCG@10 (+0,030 [0,011; 0,050]).
+  - O cross-encoder não agrega nada distinguível de 0 em nenhum dos dois sistemas e custa cerca de 250 ms por query nesta máquina.
+  - LambdaMART supera o pointwise no Híbrido (+0,032 [0,009; 0,056]).
+  - Os grupos numeric e query e as colunas de rating não mostram efeito.
+  - O test set não foi usado.
+- **Próximo passo:** decidir com o usuário a seleção final (a regra aponta o Híbrido + reranker com cross-encoder; a versão sem ele tem o mesmo NDCG@10 e é cerca de 12 vezes mais rápida, mas foi registrada fora da seleção).
+
+### 2026-11-08: Notebook 04 do reranker
+- **O que foi feito:**
+  - `notebooks/04_reranker.ipynb`, no formato dos `_revised`, com sete etapas: candidatos e exemplos de treino, features, tuning por GroupKFold, validação, o que cada parte agrega, latência e seleção final. Executado do início ao fim em cerca de 20 minutos; os números do markdown foram conferidos com as saídas.
+  - Funções novas no pacote, para o notebook não definir código reutilizável: `reranker.out_of_fold_scores`, `reranker.ranking_latency`, `reranker.evaluate_scores`, `features.ablation_feature_sets` e cortes extras de NDCG em `metrics.evaluate_run`. 226 testes passando.
+  - README atualizado com os módulos e o notebook novos.
+- **O que mudou em relação aos registros anteriores:**
+  - **Conferência manual (Etapa 3.3):** o notebook sorteia outras 10 queries. Dos 23 produtos sem `label` que saem do top 10, cerca de 6 estão fora do assunto, cerca de 13 parecem relevantes (quase sempre como um Partial) e 4 são ambíguos. A parte do ganho que parece efeito do pooling bias é maior que na leitura anterior, fora do notebook.
+  - **Ablations:** no hybrid search + reranker, tirar o grupo numeric baixa o condensed NDCG@10 (+0,010 [0,004; 0,017]); as colunas de rating sozinhas não têm esse efeito.
+  - **Latência na execução salva** (ranking p50 / p95): 269,6 / 367,7 ms com o cross-encoder e 6,1 / 7,2 ms sem ele (BM25 v2 + reranker); 278,7 / 390,7 ms e 24,7 / 29,1 ms (hybrid search + reranker).
+  - Os demais números são iguais aos do script de validação, salvo a terceira casa de alguns intervalos do bootstrap.
+  - O test set não foi usado.
+- **Em aberto:** levar ao test set o hybrid search + reranker com ou sem o cross-encoder (emenda proposta ao usuário).
+
+### 2026-11-08: Emenda da regra de seleção, sistema escolhido e modelos salvos
+- **Emenda ([EVALUATION.md](EVALUATION.md), "Seleção e teste"), feita depois de ver o validation set do reranker:** o princípio "fica o mais simples quando a diferença inclui 0" vale também para os componentes de um sistema. Motivo: a regra deixava de fora o cross-encoder, que entrou como grupo de features e foi medido só como ablation. Deveríamos ter exigido que ele se justificasse na seleção.
+- **Sistema escolhido, registrado antes do test set: Híbrido + reranker sem o cross-encoder** (NDCG@10 de 0,776 no validation set). Pela regra, fica o Híbrido + reranker (0,772); pela emenda, a versão sem o cross-encoder, que empata com ele (−0,005 [−0,015; 0,006]) e custa uma fração da latência. O test set roda os cinco sistemas da regra mais o Híbrido + reranker com o cross-encoder, que só é reportado.
+- **Modelos salvos:**
+  - `wands_search.train_reranker` treina os 4 modelos finais no train set, com as combinações do GroupKFold (`reranker.CHOSEN_COMBINATIONS`), e os grava em `models/`: um `.txt` do LightGBM e um `.json` de metadados (retrieval, features na ordem, combinação, versões) por modelo. Cerca de 180 s no CPU; cerca de 180 KB por modelo.
+  - `reranker.load_model` lê um modelo e confere que as features batem com os metadados.
+  - O escolhido é `hybrid_reranker_no_cross_encoder` (29 features): na busca, o cross-encoder não é carregado.
+- **Notebook 04, Etapa 7 reescrita:** tabela final com todos os sistemas e variantes (7.1), gráficos comparando os sistemas, por métrica e NDCG@10 contra latência (7.2), seleção com a emenda (7.3) e conferência de que os modelos salvos reproduzem os do notebook (7.4).
+- **Código:** `features.candidate_features` (antes só no notebook), `plots.system_interval_plot`, `reranker.save_model`, `reranker.load_model`, `reranker.SAVED_MODELS`. 231 testes passando. README, `CONTRIBUTING.md` (pasta `models/`) e `AGENTS.md` (comando de treino) atualizados.
+- O test set não foi usado.
+- **Próximo passo:** busca utilizável (API ou CLI) que carrega o modelo escolhido, com tratamento de entradas inválidas; depois, error analysis, test set e nota técnica.
+
+### 2026-11-08: Busca de ponta a ponta e notebook 05
+- **O que foi feito:**
+  - `search.SearchPipeline`: carrega o modelo salvo e monta só o que ele precisa, lendo os metadados (o cross-encoder só é carregado se o modelo o usar). Valida a query e o `k`, roda o retrieval (200 primeiros) e o reranker (100 primeiros) e devolve os resultados com a latência de cada etapa. 17 testes novos, num catalog de brinquedo; 248 passando.
+  - `notebooks/05_search.ipynb`: buscar qualquer texto (`QUERY`), a lista antes e depois do reranker com os `label` do validation set, entradas inválidas e latência. Executado do início ao fim.
+  - Preferência do usuário: notebook ou API em vez de CLI. O notebook foi feito; a API fica para depois.
+- **Resultado (validation set, na execução salva):**
+  - O reranker melhora o NDCG@10 de 44 das 97 queries, piora 20 e não muda 33 (média +0,029, o mesmo ganho do `04_reranker.ipynb`).
+  - Maior perda, "carpet 5x6" (de 0,782 para 0,538): o top 10 passa a ter cinco chair mats Irrelevant, que têm "carpet" no nome. Hipótese para a error analysis: o reranker pesa as palavras da query no `product_name` mesmo quando o produto é de outro tipo.
+  - Latência de uma busca: p50 de 38,1 ms (11,3 ms de retrieval e 26,7 ms de ranking), p95 de 45,6 ms, num CPU.
+  - Carga do sistema: 43 s com os embeddings em cache.
+  - O test set não foi usado.
+- **Pendente:** GitHub Release dos embeddings, para que um revisor não precise gerá-los (cerca de 40 min no CPU); detalhes no `HANDOVER.md` local.
+
+### 2026-11-09: Notebook 04 reexecutado com a Etapa 7 nova
+- **Correção:** a primeira execução da Etapa 7 falhou na 7.4. Um laço do gráfico de latência usava `chosen` como variável e sobrescrevia as combinações escolhidas da Etapa 3, o reuso de nome que o `CONTRIBUTING.md` proíbe. Renomeada para `is_selected`.
+- **Conferência:** todos os números de métricas do markdown batem com as saídas. Os quatro modelos salvos em `models/` dão exatamente as mesmas notas dos modelos treinados no notebook (diferença máxima de 0 em todos os candidates do validation set).
+- **Latência nesta execução salva** (substitui a da execução anterior do notebook; os números variam a cada execução):
+  - ranking p50 / p95: 296,4 / 414,1 ms com o cross-encoder e 7,1 / 8,1 ms sem ele (BM25 v2 + reranker); 331,2 / 452,6 ms e 26,9 / 33,3 ms (Híbrido + reranker);
+  - retrieval p50: 0,7 ms (BM25), 0,9 ms (BM25 v2), 8,3 ms (semantic search) e 10,8 ms (Híbrido);
+  - busca completa do sistema escolhido: cerca de 38 ms na mediana.
+- O test set não foi usado.

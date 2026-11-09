@@ -136,11 +136,24 @@ def labels_by_query(labels: pd.DataFrame) -> dict[int, dict[int, str]]:
     }
 
 
+# NDCG cutoffs of the sensitivity analysis of the reranker (docs/EVALUATION.md); outside the selection rule.
+SENSITIVITY_NDCG_CUTOFFS = (5, 15)
+
+
 def evaluate_run(
-    run: Mapping[int, Sequence[int]], labels: Mapping[int, QueryLabels]
+    run: Mapping[int, Sequence[int]], labels: Mapping[int, QueryLabels], extra_ndcg_cutoffs: Sequence[int] = ()
 ) -> pd.DataFrame:
-    """One row per query of ``run`` with every metric. NaN marks a metric undefined for the query."""
-    rows = {query_id: query_metrics(ranking, labels.get(query_id, {})) for query_id, ranking in run.items()}
+    """One row per query of ``run`` with every metric. NaN marks a metric undefined for the query.
+
+    ``extra_ndcg_cutoffs`` adds an ``ndcg@k`` column for each k (same gains as NDCG@10).
+    """
+    rows = {}
+    for query_id, ranking in run.items():
+        query_labels = labels.get(query_id, {})
+        row = query_metrics(ranking, query_labels)
+        for k in extra_ndcg_cutoffs:
+            row[f"ndcg@{k}"] = ndcg_at_k(ranking, query_labels, k)
+        rows[query_id] = row
     return pd.DataFrame.from_dict(rows, orient="index").rename_axis("query_id")
 
 

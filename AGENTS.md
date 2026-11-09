@@ -16,4 +16,5 @@ Antes de trabalhar, leia e siga todas as convenções de [CONTRIBUTING.md](CONTR
 
 - Instalar: `uv sync`
 - Testes: `uv run pytest`
-- Executar um notebook: `uv run jupyter nbconvert --to notebook --execute --inplace notebooks/<nome>.ipynb`
+- Executar um notebook: `uv run jupyter nbconvert --to notebook --execute --inplace notebooks/<nome>.ipynb` (o `04_reranker.ipynb` leva cerca de 20 min; use `--ExecutePreprocessor.timeout=-1`)
+- Treinar e salvar os rerankers: `uv run python -m wands_search.train_reranker`

@@ -123,6 +123,23 @@ def interval_dot_plot(ax: Axes, labels: list[str], systems: dict[str, tuple]) ->
     ax.legend(loc="lower left", bbox_to_anchor=(0, 1.0), ncol=len(systems), frameon=False)
 
 
+def system_interval_plot(ax: Axes, names: list[str], means, lows, highs, highlight: str | None = None) -> None:
+    """One row per system with its mean and 95% interval, the first name at the top.
+
+    ``highlight`` names one system drawn in the second series color, with a square marker,
+    so it stays distinct without relying on color alone.
+    """
+    positions = list(range(len(names)))[::-1]
+    for position, name, mean, low, high in zip(positions, names, means, lows, highs):
+        chosen = name == highlight
+        color = SERIES_2 if chosen else SERIES_1
+        ax.plot([low, high], [position, position], color=color, linewidth=2, solid_capstyle="round")
+        ax.plot([mean], [position], marker="s" if chosen else "o", markersize=7, color=color,
+                markeredgecolor=SURFACE, markeredgewidth=1.5, linestyle="none")
+    ax.set_yticks(positions, names)
+    ax.grid(axis="y", visible=False)
+
+
 def table(df: pd.DataFrame | pd.Series, title: str, note: str | None = None, precision: int = 1,
           max_text_length: int = 120):
     """Return a styled table with a title and an optional note, both shown above the rows.

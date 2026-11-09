@@ -17,6 +17,7 @@ Convenções do repositório, válidas para colaboradores humanos e agentes de I
 | `src/wands_search/` | Código reutilizável (carga, avaliação, retrieval, ranking) |
 | `tests/` | Testes automatizados (`uv run pytest`) |
 | `notebooks/` | Análises exploratórias e experimentos, numerados (`01_eda.ipynb`, ...) |
+| `models/` | Rerankers treinados (`uv run python -m wands_search.train_reranker`): arquivo do LightGBM e metadados em JSON. Regenerados pelo script, nunca editados à mão |
 | `docs/` | Registro de desenvolvimento e protocolo de avaliação |
 
 ## Código
