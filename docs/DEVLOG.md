@@ -614,3 +614,15 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
 - **Resultado (validation set):** o Híbrido é o que mais cobre (0,694), contra 0,637 (BM25), 0,661 (BM25 v2) e 0,660 (semantic search). Os rerankers têm o valor do seu retrieval. As outras métricas não mudaram.
 - **Latência nesta execução salva** (substitui a da entrada anterior): ranking p50 / p95 de 285,4 / 435,7 ms com o cross-encoder e 6,9 / 8,3 ms sem ele (BM25 v2 + reranker); 335,0 / 490,1 ms e 25,7 / 30,4 ms (Híbrido + reranker). Retrieval p50: 1,0 ms (BM25), 1,1 ms (BM25 v2), 8,9 ms (semantic search), 10,5 ms (Híbrido).
 - O test set não foi usado.
+
+### 2026-11-09: Test set, uma única vez
+- **Pedido do usuário:** rodar o test set nas seis linhas registradas. Primeiro foi posto como Etapa 8 do notebook 04; a execução foi interrompida antes de qualquer resultado, porque reexecutaria o notebook inteiro (cerca de 25 min). O test set foi para um notebook à parte, `notebooks/06_test_set.ipynb`, que só carrega os modelos salvos (cerca de 5 min). Uma segunda execução também foi interrompida antes de qualquer resultado, para acrescentar os gráficos. Nenhum número do test set foi visto antes da execução final.
+- **O que foi feito:** as seis linhas no validation set e no test set, com os modelos salvos em `models/`, sem treino nem ajuste. Métricas com intervalos, comparações pareadas contra o escolhido, validation set contra test set e latência, com quatro gráficos. No validation set, os números reproduzem a tabela final do notebook 04.
+- **Resultado (95 queries, 75 com Exact):**
+  - O escolhido, Híbrido + reranker sem o cross-encoder, tem o maior NDCG@10: 0,824 [0,773; 0,870].
+  - Contra o Híbrido: +0,041 [0,020; 0,063], com o condensed NDCG@10 igual (−0,002) e o judged@10 maior (+0,065), o mesmo padrão do validation set.
+  - Contra a BM25 v2 + reranker: +0,010 [−0,008; 0,031], que inclui 0; no validation set, a comparação correspondente excluía 0.
+  - Contra a versão com o cross-encoder: +0,003 [−0,008; 0,014]. Latência do ranking: 27,1 ms contra 376,8 ms na mediana.
+  - Todos os sistemas sobem do validation set para o test set (de +0,023 a +0,097), na mesma ordem, exceto que a BM25 v2 + reranker passa o Híbrido.
+- **Registro:** data, resultados e seis linhas na tabela de resultados do [EVALUATION.md](EVALUATION.md). A escolha não muda.
+- **Notebook 04:** a Etapa 8 foi retirada e o cabeçalho volta a dizer que o test set não é usado, apontando para o notebook 06.
