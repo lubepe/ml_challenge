@@ -263,7 +263,13 @@ Decisões tomadas antes de qualquer número do reranker (2026-11-08). O reranker
   - Pela emenda: fica a versão sem o cross-encoder (NDCG@10 0,776).
   - Configuração: LambdaMART (LightGBM), 29 features (as 30 sem `cross_encoder_score`), variante `zero`, `num_leaves = 15`, `learning_rate = 0,1`, `min_data_in_leaf = 20`, 100 árvores, treinado nas 287 queries de treino, sobre os 100 primeiros do Híbrido (k = 60, w = 0,5). O modelo salvo fica em `models/`.
   - **Ressalva para a nota técnica:** o ganho do reranker sobre o Híbrido vem de trazer ao topo produtos com `label`; o condensed NDCG@10 não muda (−0,002 [−0,013; 0,010]). Parte do ganho é efeito do pooling bias (`notebooks/04_reranker.ipynb`, Etapas 3.3 e 4.1).
-- **Atualização do uso do teste (2026-11-08):** além dos cinco sistemas do item 2, roda no teste o Híbrido + reranker com o cross-encoder, só como resultado reportado. Ao todo, seis linhas; o escolhido é o Híbrido + reranker sem o cross-encoder.
+- **Atualização do uso do teste (2026-11-08; redação esclarecida em 2026-11-09, sem mudar o conteúdo):** com a emenda, o "Híbrido + reranker" do item 2 é a versão sem o cross-encoder, a escolhida. O teste roda, numa única execução, estas seis linhas:
+  1. BM25 (baseline);
+  2. Vetorial;
+  3. Híbrido (RRF);
+  4. BM25 v2 + reranker (com o cross-encoder, como registrado antes da emenda; modelo `bm25_v2_reranker`);
+  5. **Híbrido + reranker sem o cross-encoder: o sistema escolhido** (modelo `hybrid_reranker_no_cross_encoder`);
+  6. Híbrido + reranker com o cross-encoder, só como resultado reportado (modelo `hybrid_reranker`).
 - **A definir:** registrar aqui a data em que o teste foi rodado, para garantir uma única vez.
 
 ## Histórico de resultados
