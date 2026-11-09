@@ -608,3 +608,9 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
   - retrieval p50: 0,7 ms (BM25), 0,9 ms (BM25 v2), 8,3 ms (semantic search) e 10,8 ms (Híbrido);
   - busca completa do sistema escolhido: cerca de 38 ms na mediana.
 - O test set não foi usado.
+
+### 2026-11-09: Capped Recall@100 com Exact e Partial no notebook 04
+- **O que foi feito:** a métrica secundária `capped_recall@100_exact_partial` (Exact e Partial como relevantes, 97 queries) entra na tabela de métricas do notebook, na Etapa 4.1, na tabela final (7.1) e num quinto painel do gráfico da 7.2. Notebook reexecutado do início ao fim.
+- **Resultado (validation set):** o Híbrido é o que mais cobre (0,694), contra 0,637 (BM25), 0,661 (BM25 v2) e 0,660 (semantic search). Os rerankers têm o valor do seu retrieval. As outras métricas não mudaram.
+- **Latência nesta execução salva** (substitui a da entrada anterior): ranking p50 / p95 de 285,4 / 435,7 ms com o cross-encoder e 6,9 / 8,3 ms sem ele (BM25 v2 + reranker); 335,0 / 490,1 ms e 25,7 / 30,4 ms (Híbrido + reranker). Retrieval p50: 1,0 ms (BM25), 1,1 ms (BM25 v2), 8,9 ms (semantic search), 10,5 ms (Híbrido).
+- O test set não foi usado.
