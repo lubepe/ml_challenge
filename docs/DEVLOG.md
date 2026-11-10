@@ -731,3 +731,15 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
 - **Nota técnica:**
   - seção 4: a leitura de 10 queries do train set (feita pelo assistente de IA) entra na ressalva: cerca de um quarto dos produtos sem julgamento que o reranker tira do topo estava fora do assunto, e mais da metade parecia relevante;
   - seção 8: os próximos passos viram uma lista em ordem de prioridade, com o detalhe no `EVALUATION.md`.
+
+### 2026-11-10: Popularidade no topo do sistema escolhido
+- **O que foi feito:** Etapa 6 nova em [notebooks/07_error_analysis.ipynb](../notebooks/07_error_analysis.ipynb): o sistema escolhido põe os produtos mais populares no topo? Só no validation set, depois do test set; descritiva, não muda a seleção. A síntese passou a ser a Etapa 7. Funções `error_analysis.product_popularity`, `popularity_profile` e `popularity_by_band`, com testes (275 passando). Notebook reexecutado do início ao fim.
+- **Motivo:** a ablation do notebook 04 mostra que o NDCG@10 não muda sem as features de rating, mas não diz se o reranker favorece produtos populares; ele poderia fazer isso sem mudar o NDCG@10.
+- **Como:** popularidade = log(1 + `rating_count`), 0 sem rating. Por query, nas ordens da hybrid search e do sistema escolhido (os mesmos 100 candidates): mediana no top 10 e nos candidates, fração sem rating e Spearman correlation entre posição e popularidade; bootstrap de 2.000 reamostragens das queries, seed 0.
+- **Resultado:**
+  - o top 10 tem um pouco menos ratings que os candidates: −0,404 [−0,644; −0,170] no sistema escolhido e −0,323 [−0,578; −0,069] na hybrid search;
+  - o reranker não muda a popularidade do top 10: −0,082 [−0,250; 0,101];
+  - fração sem rating no top 10 de 24,2%, contra 21,2% nos candidates, diferença não distinguível de 0;
+  - Spearman correlation entre posição e popularidade perto de 0 (+0,047 [0,011; 0,083]).
+- **Etapa 6.3, os erros:** um produto pior não é invertido mais vezes quando é o mais popular: taxa de inversão quando o pior é o mais popular − quando é o menos popular, −0,043 [−0,094; 0,016] no sistema escolhido e −0,025 [−0,072; 0,029] na hybrid search, em 67.762 pares; o reranker não muda isso (−0,018 [−0,052; 0,016]). Na mesma query, os Exact sem rating não ficam mais para baixo (+1,1 [−2,8; 5,3] posições, 50 queries). Comparamos taxas, e não contagens de inversões, porque os Irrelevant já têm mais ratings que os Exact entre os candidates. Funções `judged_pair_inversions`, `inversion_counts`, `exact_positions_by_rating` e `bootstrap_pooled`, com testes (280 passando).
+- **Registro:** status da proposta de ratings atualizado no [EVALUATION.md](EVALUATION.md); a pergunta original da proposta fica respondida no validation set.

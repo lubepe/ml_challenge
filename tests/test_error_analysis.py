@@ -70,3 +70,84 @@ def test_near_duplicate_pairs_finds_identical_texts_only_within_a_query():
     assert (pair.query_id, pair.product_a, pair.product_b) == (1, 10, 11)
     assert pair.cosine == pytest.approx(1.0)
     assert pair.different
+
+
+POPULARITY_PRODUCTS = pd.DataFrame({
+    "product_id": [1, 2, 3, 4],
+    "rating_count": [100.0, 10.0, 1.0, None],
+})
+
+
+def test_product_popularity_uses_log_and_flags_missing_rating():
+    popularity = error_analysis.product_popularity(POPULARITY_PRODUCTS)
+    assert popularity.loc[1, "log_rating_count"] == pytest.approx(math.log1p(100))
+    assert popularity.loc[4, "log_rating_count"] == 0.0
+    assert popularity["no_rating"].tolist() == [0.0, 0.0, 0.0, 1.0]
+
+
+def test_popularity_profile_is_negative_when_popular_products_are_on_top():
+    popularity = error_analysis.product_popularity(POPULARITY_PRODUCTS)
+    profile = error_analysis.popularity_profile([1, 2, 3, 4], popularity, top_k=2)
+    assert profile["spearman_position"] == pytest.approx(-1.0)
+    assert profile["median_log_rating_count_top"] == pytest.approx((math.log1p(100) + math.log1p(10)) / 2)
+    assert profile["no_rating_share_top"] == 0.0
+    assert profile["no_rating_share_pool"] == 0.25
+
+
+def test_popularity_profile_reverses_with_the_order():
+    popularity = error_analysis.product_popularity(POPULARITY_PRODUCTS)
+    profile = error_analysis.popularity_profile([4, 3, 2, 1], popularity, top_k=2)
+    assert profile["spearman_position"] == pytest.approx(1.0)
+    assert profile["no_rating_share_top"] == 0.5
+
+
+def test_popularity_profile_is_nan_when_all_values_are_equal():
+    popularity = error_analysis.product_popularity(pd.DataFrame({"product_id": [1, 2], "rating_count": [None, None]}))
+    assert math.isnan(error_analysis.popularity_profile([1, 2], popularity)["spearman_position"])
+
+
+def test_popularity_by_band_splits_the_list():
+    popularity = error_analysis.product_popularity(POPULARITY_PRODUCTS)
+    bands = error_analysis.popularity_by_band([1, 2, 3, 4], popularity, bands=((1, 2), (3, 4)))
+    assert bands.index.tolist() == ["1-2", "3-4"]
+    assert bands.loc["3-4", "no_rating_share"] == 0.5
+
+
+# Products 1-4 with rating_count 100, 10, 1 and none (POPULARITY_PRODUCTS).
+PAIR_LABELS = {1: "Irrelevant", 2: "Exact", 3: "Partial", 4: "Exact"}
+
+
+def test_judged_pair_inversions_marks_worse_product_above():
+    popularity = error_analysis.product_popularity(POPULARITY_PRODUCTS)
+    pairs = error_analysis.judged_pair_inversions([1, 2], PAIR_LABELS, popularity)
+    # Irrelevant (1, more popular) above Exact (2): inverted, and the worse product is the more popular.
+    assert pairs.to_dict("records") == [{"inverted": True, "worse_more_popular": True}]
+
+
+def test_judged_pair_inversions_skips_same_label_and_unjudged():
+    popularity = error_analysis.product_popularity(POPULARITY_PRODUCTS)
+    pairs = error_analysis.judged_pair_inversions([2, 99, 4], PAIR_LABELS | {99: "Exact"}, popularity)
+    assert pairs.empty
+
+
+def test_inversion_counts_split_by_popularity():
+    popularity = error_analysis.product_popularity(POPULARITY_PRODUCTS)
+    # Order 2, 3, 1: Exact > Partial (correct, worse 3 less popular), Exact > Irrelevant (correct, worse 1 more popular),
+    # Partial above Irrelevant (correct, worse 1 more popular).
+    counts = error_analysis.inversion_counts(error_analysis.judged_pair_inversions([2, 3, 1], PAIR_LABELS, popularity))
+    assert counts == {"inverted_worse_more_popular": 0, "pairs_worse_more_popular": 2,
+                      "inverted_worse_less_popular": 0, "pairs_worse_less_popular": 1}
+
+
+def test_exact_positions_by_rating():
+    popularity = error_analysis.product_popularity(POPULARITY_PRODUCTS)
+    result = error_analysis.exact_positions_by_rating([1, 2, 3, 4], PAIR_LABELS, popularity, top_k=2)
+    assert result["exact_rated"] == 1 and result["exact_rated_top"] == 1 and result["mean_position_rated"] == 2
+    assert result["exact_no_rating"] == 1 and result["exact_no_rating_top"] == 0 and result["mean_position_no_rating"] == 4
+
+
+def test_bootstrap_pooled_returns_value_on_all_queries():
+    counts = pd.DataFrame({"hits": [1, 3], "total": [2, 4]})
+    value, low, high = error_analysis.bootstrap_pooled(counts, lambda sums: sums["hits"] / sums["total"], seed=0, n_resamples=200)
+    assert value == pytest.approx(4 / 6)
+    assert 0.5 <= low <= value <= high <= 0.75
