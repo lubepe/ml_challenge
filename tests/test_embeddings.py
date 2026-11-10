@@ -1,3 +1,5 @@
+import shutil
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -111,6 +113,66 @@ def test_cache_encodes_again_when_texts_change(tmp_path):
     embeddings.cached_document_vectors([1, 2], ["chair", "sofa"], encoder, tmp_path)
     embeddings.cached_document_vectors([1, 2], ["chair", "wood"], encoder, tmp_path)
     assert encoder.documents_encoded == 4
+
+
+def release_file(tmp_path, monkeypatch, vectors, published_sha256=None):
+    """Publish ``vectors`` as a fake Release file for the texts ["chair", "sofa"]; returns its cache name."""
+    source = tmp_path / "release" / "vectors.npy"
+    source.parent.mkdir()
+    np.save(source, vectors)
+    encoder = BagOfWordsEncoder()
+    digest = embeddings.hashlib.sha256(
+        f"{encoder.cache_key}|{embeddings.texts_digest([1, 2], ['chair', 'sofa'])}".encode()
+    ).hexdigest()[:20]
+    monkeypatch.setattr(
+        embeddings, "RELEASE_FILES", {digest: published_sha256 or embeddings.file_sha256(source)}
+    )
+    monkeypatch.setattr(embeddings, "fetch_url", lambda url, destination: shutil.copy(source, destination))
+    return digest
+
+
+def test_missing_cache_file_is_downloaded_from_the_release(tmp_path, monkeypatch):
+    published = np.full((2, len(VOCABULARY)), 7, dtype=np.float32)
+    digest = release_file(tmp_path, monkeypatch, published)
+    encoder = BagOfWordsEncoder()
+    vectors = embeddings.cached_document_vectors([1, 2], ["chair", "sofa"], encoder, tmp_path / "cache")
+    assert encoder.documents_encoded == 0
+    assert np.array_equal(vectors, published)
+    assert (tmp_path / "cache" / "embeddings" / f"{digest}.npy").exists()
+
+
+def test_download_with_wrong_sha256_falls_back_to_local_encoding(tmp_path, monkeypatch):
+    digest = release_file(tmp_path, monkeypatch, np.zeros((2, len(VOCABULARY))), published_sha256="0" * 64)
+    encoder = BagOfWordsEncoder()
+    vectors = embeddings.cached_document_vectors([1, 2], ["chair", "sofa"], encoder, tmp_path / "cache")
+    assert encoder.documents_encoded == 2
+    assert vectors[0].tolist() == [0, 1, 0, 0, 0]
+    assert not (tmp_path / "cache" / "embeddings" / f"{digest}.part").exists()
+
+
+def test_failed_download_falls_back_to_local_encoding(tmp_path, monkeypatch):
+    release_file(tmp_path, monkeypatch, np.zeros((2, len(VOCABULARY))))
+
+    def fail(url, destination):
+        raise OSError("no network")
+
+    monkeypatch.setattr(embeddings, "fetch_url", fail)
+    encoder = BagOfWordsEncoder()
+    embeddings.cached_document_vectors([1, 2], ["chair", "sofa"], encoder, tmp_path / "cache")
+    assert encoder.documents_encoded == 2
+
+
+def test_download_can_be_turned_off(tmp_path, monkeypatch):
+    release_file(tmp_path, monkeypatch, np.zeros((2, len(VOCABULARY))))
+    encoder = BagOfWordsEncoder()
+    embeddings.cached_document_vectors([1, 2], ["chair", "sofa"], encoder, tmp_path / "cache", download=False)
+    assert encoder.documents_encoded == 2
+
+
+def test_release_files_list_the_two_published_embeddings():
+    assert embeddings.RELEASE_URL.endswith("/releases/download/embeddings-v1")
+    assert len(embeddings.RELEASE_FILES) == 2
+    assert all(len(sha256) == 64 for sha256 in embeddings.RELEASE_FILES.values())
 
 
 def test_mismatched_lengths_raise():

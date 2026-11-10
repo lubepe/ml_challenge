@@ -656,3 +656,12 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
   - features de match de atributo com os key:value pairs de `product_features`;
   - corretor ortográfico.
 - O test set não foi usado.
+
+### 2026-11-09: GitHub Release dos embeddings
+- **Release `embeddings-v1`** em `lubepe/ml_challenge`, criado pela interface web. A tag aponta para o commit `80b2a17`. O Release tem os dois arquivos de `cache/embeddings/` (42.994 × 384, float32, normalizados, uma linha por produto na ordem de `product_id`):
+  - `a69ae5a32d14c0466cb7.npy`: texto longo, usado na semantic search e na hybrid search. sha256 `17a2f137…6bda`;
+  - `c22b318b1b827f635905.npy`: texto curto, usado na feature `short_cosine`. sha256 `2ef8c1e9…cfbcf`.
+- **Download automático:** quando o arquivo não está em `cache/embeddings/` e o nome dele está em `embeddings.RELEASE_FILES`, `embeddings.cached_document_vectors` o baixa e confere o sha256. Se o download falhar ou o sha256 não conferir, os embeddings são gerados localmente, como antes. O nome do arquivo continua sendo a chave de cache, então texto ou modelo diferente não usa o arquivo do Release. O parâmetro `download=False` desliga o download.
+- **Testes:** seis testes novos, com download simulado e sem rede; 266 testes passando neste commit. Os sha256 em `RELEASE_FILES` foram conferidos contra os arquivos locais.
+- **Pendente:** o repositório ainda é privado, e por isso o download sem login retorna 404. Falta conferir o download real depois de tornar o repositório público.
+- O test set não foi usado.

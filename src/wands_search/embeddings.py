@@ -8,6 +8,8 @@ once, and a query is scored against every product by cosine similarity (exact se
 import copy
 import hashlib
 import json
+import shutil
+import urllib.request
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Protocol
@@ -24,6 +26,17 @@ BATCH_SIZE = 64
 # Inputs longer than this many wordpieces are cut by the model.
 MODEL_MAX_WORDPIECES = 512
 DEFAULT_CACHE_DIR = Path(__file__).resolve().parents[2] / "cache"
+
+# Product embeddings published in the GitHub Release "embeddings-v1", keyed by the cache file
+# name of cached_document_vectors, with the sha256 of each file.
+RELEASE_URL = "https://github.com/lubepe/ml_challenge/releases/download/embeddings-v1"
+RELEASE_FILES = {
+    # Long text: semantic search and hybrid search.
+    "a69ae5a32d14c0466cb7": "17a2f13764753531a9145c3d8f2c44771276221394e171543dc2ad24e1e26bda",
+    # Short text: reranker feature short_cosine.
+    "c22b318b1b827f635905": "2ef8c1e976a4c719975f8b682637aeab8284d2d43af60d04d3cd2164aeecfbcf",
+}
+DOWNLOAD_TIMEOUT_SECONDS = 60
 
 
 class Encoder(Protocol):
@@ -120,19 +133,69 @@ def texts_digest(product_ids: Sequence[int], texts: Sequence[str]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def file_sha256(path: Path) -> str:
+    """sha256 of a file, read in chunks."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as file:
+        for chunk in iter(lambda: file.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def fetch_url(url: str, destination: Path) -> None:
+    """Download ``url`` into ``destination``."""
+    with urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response, open(destination, "wb") as file:
+        shutil.copyfileobj(response, file)
+
+
+def download_release_file(name: str, path: Path) -> bool:
+    """Download the Release file ``name`` into ``path`` and check its sha256.
+
+    Returns False, leaving nothing at ``path``, when ``name`` is not in RELEASE_FILES, the
+    download fails or the sha256 does not match.
+    """
+    expected_sha256 = RELEASE_FILES.get(name)
+    if expected_sha256 is None:
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial = path.with_suffix(".part")
+    url = f"{RELEASE_URL}/{name}.npy"
+    print(f"Downloading product embeddings from {url}")
+    try:
+        fetch_url(url, partial)
+    except OSError as error:
+        partial.unlink(missing_ok=True)
+        print(f"Download failed ({error}); encoding the products locally")
+        return False
+    if file_sha256(partial) != expected_sha256:
+        partial.unlink()
+        print("Downloaded file has the wrong sha256; encoding the products locally")
+        return False
+    partial.replace(path)
+    return True
+
+
 def cached_document_vectors(
-    product_ids: Sequence[int], texts: Sequence[str], encoder: Encoder, cache_dir: Path | None = DEFAULT_CACHE_DIR
+    product_ids: Sequence[int],
+    texts: Sequence[str],
+    encoder: Encoder,
+    cache_dir: Path | None = DEFAULT_CACHE_DIR,
+    download: bool = True,
 ) -> np.ndarray:
     """Product vectors, read from ``cache_dir/embeddings`` when the same encoder already saw the same texts.
 
     The file name holds a hash of the encoder key, the product ids and the texts, so any change
-    in one of them makes a new file. ``cache_dir=None`` disables the cache.
+    in one of them makes a new file. When the file is missing but published in the GitHub Release
+    (RELEASE_FILES) and ``download`` is True, it is downloaded and checked by sha256; if that
+    fails, the products are encoded locally. ``cache_dir=None`` disables the cache.
     """
     if cache_dir is None:
         return encoder.encode_documents(texts)
     digest = hashlib.sha256(f"{encoder.cache_key}|{texts_digest(product_ids, texts)}".encode()).hexdigest()[:20]
     path = Path(cache_dir) / "embeddings" / f"{digest}.npy"
     if path.exists():
+        return np.load(path)
+    if download and download_release_file(digest, path):
         return np.load(path)
     vectors = encoder.encode_documents(texts)
     path.parent.mkdir(parents=True, exist_ok=True)
