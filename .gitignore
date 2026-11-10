@@ -4,3 +4,4 @@ __pycache__/
 HANDOVER.md
 CLAUDE.local.md
 cache/
+.DS_Store

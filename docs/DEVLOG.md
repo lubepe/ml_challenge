@@ -657,6 +657,26 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
   - corretor ortográfico.
 - O test set não foi usado.
 
+### 2026-11-09: Declaração do uso de IA e estado final do EVALUATION
+- **Seção 9 da nota técnica reescrita:** ferramenta e escopo (o assistente escreveu o código, os testes, a maior parte das análises e a documentação), papel do autor, como o código e as conclusões foram revisados, e os modelos pré-treinados usados. Motivo: o enunciado pede que a declaração diga como a IA foi usada e como o código e as conclusões foram revisados. A nota continua com 3 páginas.
+- **`docs/EVALUATION.md` deixa de se apresentar como rascunho:**
+  - **Cabeçalho:** diz que a Versão 0 foi editada diretamente até 2026-11-08 e é o protocolo aplicado no test set; que as mudanças de regra ficaram como itens datados, e não como versões novas; e que, depois do test set, só foi acrescentado o status final dos itens em aberto.
+  - **Resumo do protocolo aplicado,** no topo: split, relevância, métricas, uso de cada set, comparação, seleção, sistema escolhido e data do test set.
+  - **Status em 2026-11-09** em cada item que estava como Proposta, A definir ou Pendente (deduplicação, `product_id` como unidade, média por query, nulls sem imputation, `product_class` contra a query, mesmo conjunto de candidatos, efeito dos produtos sem `label`, ablation de rating). Cada status descreve o que foi implementado e medido, e o que não foi feito.
+  - O cabeçalho da tabela "Histórico de resultados" passa a listar todos os sistemas da tabela.
+- **Nenhuma regra mudou** e nenhum número foi recalculado. O test set não foi usado de novo.
+- **MRR@10 na nota técnica:** definido na seção 3 e citado na ressalva da seção 4: o reranker não muda o MRR@10 de forma estatisticamente significativa nos dois sets (notebooks 04 e 06). Para abrir espaço, a seção 9 ficou mais curta e a frase de reprodutibilidade da seção 2 foi encurtada. **A nota está com 4 páginas;** o corte fica para depois das próximas mudanças.
+- **Limitações de código na nota técnica, sem mudar o código:**
+  - A seção 6 diz que a latência do ranking inclui recalcular o embedding da query, o BM25 e a RRF, que o retrieval já calculou.
+  - A seção 8 registra que a feature `number_match` ignora as dimensões de `product_features` e não casa "5x6" com "5 x 6" (query "carpet 5x6", validation set). Corrigir a feature fica como próximo passo.
+  - **Motivo para não mudar o código:** os modelos salvos foram treinados com as features atuais. Mudar o cálculo de uma feature quebraria a reprodução do test set e criaria training/serving skew na busca. Uma correção teria de ser aditiva (feature e modelo novos) e só poderia ser medida no validation set.
+- **Tag git `test-set-run`** no commit `80b2a17`, o da execução única do test set. Registrada no `EVALUATION.md`.
+- **Custo de indexação na seção 6 da nota técnica, corrigido:**
+  - Os embeddings são dois conjuntos de 66 MB: texto longo da semantic search, ~32 min, e texto curto da feature `short_cosine`, ~5 min. Fonte: `notebooks/03_semantic_hybrid.ipynb`. Total de ~37 min.
+  - Um produto novo exige calcular os seus dois embeddings e reconstruir os índices BM25, porque o `bm25s` não acrescenta documentos a um índice pronto; o reranker não precisa ser retreinado.
+  - O tempo de carga (43 s) passa a ser citado como da execução salva do `notebooks/05_search.ipynb`.
+- **Reprodutibilidade do `notebooks/04_reranker.ipynb`, conferida:** uma cópia foi reexecutada do início ao fim, fora do repositório, e as saídas foram comparadas célula a célula com as do notebook versionado. Todas as métricas, o tuning por GroupKFold, as ablations, os baselines e as tabelas se repetiram exatamente. Só mudaram os tempos e a latência; por exemplo, o ranking do sistema escolhido foi de 25,7 / 30,4 ms (p50 / p95) para 24,8 / 29,0 ms. A execução levou 15 min. O notebook versionado não foi alterado.
+
 ### 2026-11-09: GitHub Release dos embeddings
 - **Release `embeddings-v1`** em `lubepe/ml_challenge`, criado pela interface web. A tag aponta para o commit `80b2a17`. O Release tem os dois arquivos de `cache/embeddings/` (42.994 × 384, float32, normalizados, uma linha por produto na ordem de `product_id`):
   - `a69ae5a32d14c0466cb7.npy`: texto longo, usado na semantic search e na hybrid search. sha256 `17a2f137…6bda`;
@@ -665,3 +685,49 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
 - **Testes:** seis testes novos, com download simulado e sem rede; 266 testes passando neste commit. Os sha256 em `RELEASE_FILES` foram conferidos contra os arquivos locais.
 - **Pendente:** o repositório ainda é privado, e por isso o download sem login retorna 404. Falta conferir o download real depois de tornar o repositório público.
 - O test set não foi usado.
+
+### 2026-11-09: README para reproduzir o projeto do zero
+- **Resumo no topo:** o sistema escolhido, o NDCG@10 do test set contra o BM25 baseline e os links para a nota técnica, o EVALUATION e o DEVLOG.
+- **"Reproduzir os resultados":** a ordem completa, do split à nota técnica, com o que cada passo gera, quanto tempo leva e do que depende. Inclui o aviso de que o test set já foi usado (tag `test-set-run`) e qual notebook sustenta cada seção da nota técnica.
+  - Tempos medidos reexecutando cópias dos notebooks fora do repositório: `01_eda` e `01_eda_revised` ~33 s; `02_bm25` e `02_bm25_revised` ~3,4 min; `04_reranker` ~15 min (antes o README dizia ~20 min).
+- **"Reprodutibilidade":** a tabela de seeds com links para as constantes, onde ficam os parâmetros e as versões, e o resultado das reexecuções. Os notebooks 01, 02 e 04 reproduzem todas as métricas exatamente; só os tempos mudam. A exceção é `queries_positive_pct` de `has_ratings` no `01_eda_revised.ipynb`: uma query com correlação igual a zero passa a ter um valor positivo minúsculo, por arredondamento de ponto flutuante. O número não é citado no texto.
+- **Dataset:** origem no repositório [wayfair/WANDS](https://github.com/wayfair/WANDS) (licença MIT), com a citação do artigo (ECIR 2022). Os arquivos em `dataset/` são os do repositório, com os nomes originais. A renomeação de `label.csv` registrada na entrada de 2026-11-05 foi desfeita depois.
+- **Estrutura:** a descrição de `src/wands_search/` virou uma tabela de módulos, e a dos notebooks diz que as versões `_revised` trazem os mesmos resultados com texto revisado.
+- O texto sobre o download dos embeddings do Release, escrito com o commit `bea567c`, foi mantido.
+
+### 2026-11-09: Ablation do sistema escolhido e "não distinguível de 0"
+- **Ablations do sistema escolhido** (`notebooks/04_reranker.ipynb`, Etapa 5.3.1, nova). As ablations da Etapa 5.3 eram do Híbrido + reranker com o cross-encoder (0,772), e o escolhido é a versão sem ele (0,776). Repetidas sobre o escolhido, só no validation set e sem novo tuning, depois do test set. A seleção não muda.
+  - Escolhido − sem o grupo (NDCG@10): text +0,043 [0,025; 0,064], embedding +0,036 [0,013; 0,060], retrieval +0,030 [0,005; 0,057]; numeric, query e rating não distinguíveis de 0.
+  - Sem o cross-encoder, o grupo text pesa mais que no modelo completo (+0,043 contra +0,018).
+  - Antes de substituir o notebook, uma cópia com a seção nova foi executada do início ao fim e comparada com a versão anterior: todas as métricas se repetiram exatamente, e só os tempos e a latência mudaram. O markdown das Etapas 6 e 7 foi atualizado com as latências da nova execução (ranking do escolhido: 24,8 / 28,9 ms, antes 25,7 / 30,4 ms), e o TL;DR cita a Etapa 5.3.1.
+  - A célula de conclusões da importância por gain apontava a ablation como "Etapa 5.1"; corrigido para 5.3.
+- **"Empate" → "não distinguível de 0":** um intervalo de 95% que contém 0 não mostra que os sistemas são iguais, só que a amostra não os separa. Trocado na nota técnica (definição na seção 3, regra de escolha e seções 4, 5 e 8) e no markdown dos notebooks 03 e 04, sem reexecução. O texto histórico da emenda no `EVALUATION.md` não foi alterado. "Desempate" e "empate" no sentido de valores iguais continuam.
+- **Nota técnica:**
+  - a seção 5 passa a citar as ablations do escolhido (0,733 sem text, 0,740 sem embedding, 0,746 sem retrieval);
+  - "a popularidade do produto não pesa" virou "não mostrou efeito mensurável nestes julgamentos";
+  - a seção 8 ganhou o item "Comparações múltiplas": o test set confirma a melhora do reranker sobre a hybrid search, mas não a vantagem do escolhido sobre o BM25 v2 + reranker;
+  - contagem de testes atualizada para 270. A nota continua com 4 páginas, a cortar no fim.
+- **`EVALUATION.md`:** ablations do escolhido registradas como resultado posterior ao test set; latência do escolhido na tabela de resultados atualizada para a execução salva atual, com a anterior entre parênteses.
+- 270 testes passando.
+
+### 2026-11-09: Correção de autoria das leituras qualitativas
+- **Correção:** as leituras qualitativas dos notebooks foram feitas pelo assistente de IA, sem revisão humana. Os textos que diziam "uma pessoa", "à mão", "lemos" ou "nossa" passam a dizer isso explicitamente:
+  - `notebooks/04_reranker.ipynb`, Etapa 3.3 e TL;DR: a leitura dos produtos sem `label` de 10 queries do train set, e a "leitura anterior, fora do notebook", que não tem registro;
+  - `notebooks/07_error_analysis.ipynb`: as correções de typo (Etapa 3), as categorias de erro das 49 queries (Etapa 5) e as regras de atributo por query;
+  - a entrada "Leitura qualitativa de 10 queries sorteadas (`seed = 0`), uma pessoa, sem `label`", mais acima neste DEVLOG, também foi feita pelo assistente. A entrada fica como está, e esta a corrige;
+  - nota técnica, seção 7: as categorias de erro e as correções de typo são do assistente, numa única leitura.
+- Só markdown; nenhum notebook foi reexecutado.
+
+### 2026-11-10: Trabalhos futuros
+- **`docs/EVALUATION.md`, seção nova "Trabalhos futuros":** seis itens em ordem de prioridade, cada um com o problema visto nos dados, a proposta, como medir e os riscos:
+  1. medir quanto do ganho do reranker é real, com um juiz (pessoa ou LLM) validado nos pares que já têm `label` e o NDCG@10 recalculado; inclui a alternativa sem juiz (todos os sem `label` como Irrelevant e como Partial);
+  2. tipo de produto da query contra `product_class`;
+  3. atributos de `product_features`;
+  4. a correção de `number_match`;
+  5. fine-tuning do embedding model;
+  6. corretor ortográfico.
+  - **Riscos registrados, entre outros:** o juiz vê só o texto, a circularidade entre o LLM e as features do reranker, overfitting do classificador de tipo e do fine-tuning pelo tamanho do train set (287 queries), negativos falsos por pooling bias e ganhos pequenos demais para medir em poucas queries.
+  - A "parte da perda" de cada categoria é tratada como teto, e não como ganho esperado.
+- **Nota técnica:**
+  - seção 4: a leitura de 10 queries do train set (feita pelo assistente de IA) entra na ressalva: cerca de um quarto dos produtos sem julgamento que o reranker tira do topo estava fora do assunto, e mais da metade parecia relevante;
+  - seção 8: os próximos passos viram uma lista em ordem de prioridade, com o detalhe no `EVALUATION.md`.
