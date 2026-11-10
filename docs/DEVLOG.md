@@ -732,6 +732,13 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
   - seção 4: a leitura de 10 queries do train set (feita pelo assistente de IA) entra na ressalva: cerca de um quarto dos produtos sem julgamento que o reranker tira do topo estava fora do assunto, e mais da metade parecia relevante;
   - seção 8: os próximos passos viram uma lista em ordem de prioridade, com o detalhe no `EVALUATION.md`.
 
+### 2026-11-10: TL;DR do notebook 01 revisado
+- **`notebooks/01_eda_revised.ipynb`, TL;DR** (só markdown, sem reexecução):
+  - o item sobre palavras da query diz o que o 42% mede (média por par julgado, em `product_name`, `product_class` e `category_hierarchy`) e que as palavras em comum não bastam nem para o retrieval nem para o ranking; a Etapa 5.1 ganhou o item correspondente sobre o retrieval;
+  - novo item: um `product_id` parece reunir vários SKUs, com os números das Etapas 2.5.1 e 2.5.2; SKU entrou na tabela de termos;
+  - o split cita as duas variáveis de stratification (`n_judged` e `exact_share`);
+  - o item de métricas fica só com o que o notebook 01 decide: NDCG@10 principal em 479 queries; Capped Recall@100 e MRR@10 só com Exact, em 379. As regras de ajuste do retrieval e do reranker, decididas nos notebooks 02 a 04, saíram do TL;DR.
+
 ### 2026-11-10: Popularidade no topo do sistema escolhido
 - **O que foi feito:** Etapa 6 nova em [notebooks/07_error_analysis.ipynb](../notebooks/07_error_analysis.ipynb): o sistema escolhido põe os produtos mais populares no topo? Só no validation set, depois do test set; descritiva, não muda a seleção. A síntese passou a ser a Etapa 7. Funções `error_analysis.product_popularity`, `popularity_profile` e `popularity_by_band`, com testes (275 passando). Notebook reexecutado do início ao fim.
 - **Motivo:** a ablation do notebook 04 mostra que o NDCG@10 não muda sem as features de rating, mas não diz se o reranker favorece produtos populares; ele poderia fazer isso sem mudar o NDCG@10.
