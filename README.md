@@ -95,7 +95,7 @@ Os números da nota ficam como constantes em `wands_search.technical_note`, cada
 
 **Versões:** fixadas no `uv.lock`. O `pyproject.toml` limita o `onnxruntime` a < 1.24 só no macOS Intel, onde as versões mais novas não instalam.
 
-**Reexecução conferida:** os notebooks 01, 02 e 04 foram reexecutados do início ao fim, e as saídas foram comparadas célula a célula com as versionadas. Todas as métricas se repetiram exatamente; só os tempos e a latência mudaram. A única exceção é uma porcentagem descritiva do `01_eda.ipynb` (`queries_positive_pct` de `has_ratings`): uma query com correlação igual a zero passa a ter um valor positivo minúsculo, por arredondamento de ponto flutuante. Esse número não é citado no texto.
+**Reexecução conferida:** os notebooks 01, 02, 04 e 05 foram reexecutados do início ao fim, e as saídas foram comparadas célula a célula com as versionadas. Todas as métricas se repetiram exatamente; só os tempos e a latência mudaram. A única exceção é uma porcentagem descritiva do `01_eda.ipynb` (`queries_positive_pct` de `has_ratings`): uma query com correlação igual a zero passa a ter um valor positivo minúsculo, por arredondamento de ponto flutuante. Esse número não é citado no texto.
 
 ## Estrutura
 
