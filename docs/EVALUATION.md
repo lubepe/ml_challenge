@@ -310,7 +310,7 @@ Registrado em 2026-11-09, depois do test set. Nenhum destes itens foi feito, por
 
 **Como ler a "parte da perda":** é a soma de 1 − NDCG@10 das queries de uma categoria dividida pela perda total das 97 queries do validation set (`notebooks/07_error_analysis.ipynb`, Etapa 5.5). É um teto do que uma melhoria naquela categoria recuperaria, e não um ganho esperado. As categorias foram atribuídas pelo assistente de IA, numa única leitura, sem revisão humana.
 
-**Ordem de prioridade:** o item 1 vem primeiro porque, sem ele, não sabemos se o reranker atual melhora a busca de verdade, e isso muda o valor de todos os outros. Do 2 ao 5, a ordem segue a parte da perda e o custo. O 6 fica por último porque o ganho dele não pode ser medido com os `label` atuais.
+**Ordem de prioridade:** o item 1 vem primeiro porque, sem ele, não sabemos se o reranker atual melhora a busca de verdade, e isso muda o valor de todos os outros. Do 2 ao 5, a ordem segue a parte da perda e o custo. O 6 fica por último porque o ganho dele não pode ser medido com os `label` atuais. O 7, registrado depois (2026-11-10), muda o critério de avaliação, e não o sistema; fica fora dessa ordem, e a parte (a) pode ser feita a qualquer momento, sem treino. O 8, também registrado em 2026-11-10, é mais barato que o fine-tuning (item 5), porque não exige `torch` nem outro ambiente, e pode ser feito antes dele.
 
 1. **Medir quanto do ganho do reranker é real.**
    - **Problema:** o ganho de NDCG@10 do reranker sobre a hybrid search vem de tirar do topo produtos sem `label`. O condensed NDCG@10 não muda (−0,002 [−0,013; 0,010] no validation set; −0,002 [−0,012; 0,009] no test set). Numa leitura de 10 queries do train set, feita pelo assistente de IA, cerca de um quarto dos produtos sem `label` que saem do top 10 estava fora do assunto, e mais da metade parecia relevante (`notebooks/04_reranker.ipynb`, Etapa 3.3).
@@ -362,6 +362,31 @@ Registrado em 2026-11-09, depois do test set. Nenhum destes itens foi feito, por
    - **Riscos:**
      - **Ganho não mensurável:** a query corrigida traz produtos que nunca foram julgados para a query original (`notebooks/07_error_analysis.ipynb`, Etapa 3). Medir exigiria novos julgamentos.
      - **Corrigir o que não é erro, ou do jeito errado:** nomes próprios e de marcas (categoria `proper_name`, 8,6% da perda) podem ser "corrigidos" para palavras comuns, e a correção escolhida pode não ser a que quem buscou queria ("minnestrista" foi corrigida para `minnetrista`, uma suposição do assistente).
+
+7. **Avaliar e escolher também além do top 10.**
+   - **Problema:** as decisões otimizaram o topo da lista, supondo que o usuário olha principalmente os 10 primeiros resultados. Mas as outras posições também importam: não basta o top 10 ser bom e os outros 90 candidatos serem irrelevantes.
+     - O reranker é treinado com `lambdarank_truncation_level = 10` (`wands_search.reranker`), então só aprende com pares que envolvem as 10 primeiras posições, e é escolhido pelo NDCG@10.
+     - O retrieval é ajustado pelo Capped Recall@100 só com Exact, que conta quantos Exact chegam aos 100 candidatos, mas não olha a ordem, ignora os Partial e não penaliza Irrelevant entre eles.
+     - Nenhuma métrica usada nas decisões mede as posições 11 a 100. O maior corte medido foi NDCG@15, como análise de sensibilidade (Versão 0, "Reranker (learning-to-rank)").
+   - **Proposta:**
+     - (a) reportar NDCG@50 e NDCG@100 de todos os sistemas no validation set, sobre as listas de 200 primeiros que já existem, junto com judged@50 e judged@100;
+     - (b) treinar o reranker com truncamento maior (por exemplo, 20, 50 e 100) e comparar NDCG@10 e NDCG@100;
+     - (c) uma regra de escolha que dê peso também a um corte maior e ao Capped Recall@100 com Exact e Partial, fixada antes de qualquer número.
+   - **O que mede:** se o sistema escolhido também ordena bem as posições 11 a 100, e quanto do NDCG@10 se perde ao otimizar a lista inteira.
+   - **Riscos:**
+     - **Pooling bias maior:** quanto mais fundo na lista, maior a chance de o produto estar sem `label`, e o NDCG@100 passa a depender mais da regra "sem `label` = 0". Por isso judged@50 e judged@100 vão ao lado.
+     - **Peso de cada corte sem dado de uso:** o dataset não diz quantas posições os usuários olham; o peso dado a cada corte seria uma escolha, não uma medida.
+     - **Regra nova depois do test set:** qualquer regra nova vale só para escolhas futuras e não muda a seleção já feita.
+
+8. **Testar outros embedding models pré-treinados.**
+   - **Problema:** só o `BAAI/bge-small-en-v1.5` foi testado, por restrição de tempo (Versão 0, "Retrieval vetorial e híbrido"). No validation set, a semantic search sozinha tem o menor Capped Recall@100 dos retrievals (0,678), e as features de embedding estão entre as que mais ajudam o reranker escolhido (`notebooks/04_reranker.ipynb`, Etapa 5.3.1).
+   - **Proposta:** comparar no train set, com a mesma grade de texto do produto e query prefix, modelos que o `fastembed` 0.9.1 já roda sem `torch`: `sentence-transformers/all-MiniLM-L6-v2` (384 dimensões, menor e mais rápido) e `BAAI/bge-base-en-v1.5` (768 dimensões). Com o melhor, refazer o tuning da hybrid search e treinar de novo o reranker.
+   - **O que mede:** se outro modelo aumenta o Capped Recall@100 da semantic search e da hybrid search, e o NDCG@10 do sistema com reranker.
+   - **Riscos:**
+     - **Custo de indexação:** cada modelo exige gerar de novo os embeddings dos 42.994 produtos: cerca de 31 min no CPU com o `bge-small-en-v1.5` e o long text (`notebooks/03_semantic_hybrid.ipynb`, Etapa 2.1), e cerca de 3 vezes mais com um modelo de 768 dimensões (estimativa da Versão 0, não medida). O cache publicado no Release também teria de ser gerado de novo.
+     - **Latência:** o embedding da query já é cerca de dois terços do tempo da semantic search (4,7 ms de 7,2 ms no p50, `notebooks/03_semantic_hybrid.ipynb`, Etapa 2.3); um modelo maior aumenta esse tempo.
+     - **Memória:** com 768 dimensões, os embeddings do catalog passam de 66 MB para cerca de 132 MB.
+     - **Depois do test set:** o test set já foi rodado (2026-11-09). Um modelo novo não muda a seleção já feita, e a comparação vale só no validation set.
 
 ## Histórico de resultados
 
