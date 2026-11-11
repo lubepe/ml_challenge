@@ -84,7 +84,7 @@ Sempre nesta ordem; um bloco sem conteúdo é omitido.
 - Vários painéis ficam em uma coluna e múltiplas linhas, nunca lado a lado.
 - Cada gráfico se explica sozinho, porque pode ser lido fora do notebook. O título diz o que é medido e em quais dados; os eixos usam nomes explícitos; termos técnicos são definidos numa nota abaixo do gráfico.
 - Todo gráfico que fala em token traz uma nota explicando como o token é calculado (`plots.TOKEN_DEFINITION`).
-- O texto dos gráficos fica em inglês, como o resto do código.
+- O texto dos gráficos fica em inglês, como o resto do código. **Exceção:** os gráficos da nota técnica (`docs/nota_tecnica/`, gerados por `wands_search.technical_note`) ficam em português, como o texto que eles acompanham, com os termos técnicos em inglês e vírgula decimal.
 
 ## Terminologia
 

@@ -1,0 +1,35 @@
+@page { size: A4; margin: 14mm 16mm 14mm 16mm; }
+:root { --ink: #1b1b1a; --muted: #5d5c58; --rule: #d9d8d0; --accent: #2a78d6; --accent-2: #eb6834; --soft: #f3f3ef; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 8.9pt; line-height: 1.34; color: var(--ink); background: #fff; margin: 0; }
+h1 { font-size: 17pt; margin: 0 0 2pt; letter-spacing: -0.2pt; }
+.subtitle { color: var(--muted); font-size: 9pt; margin: 0 0 8pt; }
+h2 { font-size: 11pt; margin: 10pt 0 3pt; padding-bottom: 2pt; border-bottom: 1px solid var(--rule); break-after: avoid; }
+p { margin: 0 0 5pt; }
+ul { margin: 0 0 5pt; padding-left: 14pt; }
+li { margin: 0 0 1.5pt; }
+code { font-family: Menlo, Consolas, monospace; font-size: 8.4pt; background: var(--soft); padding: 0 2pt; border-radius: 2pt; }
+strong { font-weight: 600; }
+a { color: var(--accent); text-decoration: none; }
+.summary { background: var(--soft); border-left: 3px solid var(--accent); padding: 6pt 9pt; margin: 0 0 6pt; }
+.summary ul { margin: 0; }
+figure { margin: 4pt 0 7pt; break-inside: avoid; text-align: center; }
+figure img { width: 100%; }
+figure.narrow img { width: 82%; }
+figcaption { font-size: 8.4pt; color: var(--muted); text-align: left; margin-top: 2pt; }
+table { border-collapse: collapse; width: 100%; font-size: 8.6pt; margin: 3pt 0 6pt; break-inside: avoid; }
+th, td { text-align: left; padding: 2.5pt 5pt; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.flow { display: flex; align-items: stretch; gap: 0; margin: 4pt 0 6pt; break-inside: avoid; }
+.flow .box { flex: 1; border: 1px solid var(--rule); border-radius: 4pt; padding: 5pt 6pt; font-size: 8.3pt; line-height: 1.3; background: #fff; }
+.flow .box b { display: block; font-size: 8.8pt; margin-bottom: 2pt; }
+.flow .box.retrieval { border-top: 3px solid var(--accent); }
+.flow .box.ranking { border-top: 3px solid var(--accent-2); }
+.flow .arrow { align-self: center; padding: 0 4pt; color: var(--muted); font-size: 11pt; }
+.two-col { display: flex; gap: 12pt; }
+.two-col > div { flex: 1; }
+.cols { column-count: 2; column-gap: 7mm; }
+.cols h2:first-child { margin-top: 2pt; }
+.cols figure img { width: 100%; }
+.cols table { font-size: 8pt; }
+.cols th, .cols td { padding: 2pt 3pt; }

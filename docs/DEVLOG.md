@@ -657,6 +657,31 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
   - corretor ortográfico.
 - O test set não foi usado.
 
+### 2026-11-09: Nota técnica
+- **O que foi feito:** [docs/nota_tecnica/nota_tecnica.pdf](nota_tecnica/nota_tecnica.pdf), com 3 páginas, escrita para revisores sem formação em data science. O texto-fonte é `nota_tecnica.md`, com o layout em `style.css`.
+  - **Conteúdo:** arquitetura, preparação dos dados, protocolo de avaliação, resultados, ablations, latência e custo de indexação, error analysis e limitações.
+  - **Gráficos:** quatro, com tabela só para o custo de indexação.
+- **Código:**
+  - `wands_search.technical_note` desenha os gráficos e gera o PDF com o Chrome headless (`uv run python -m wands_search.technical_note`).
+  - Os números vêm do `EVALUATION.md` e do notebook 07, copiados como constantes com a fonte de cada um. Recalculá-los seria rodar o test set de novo.
+  - `plots.add_caption` ganhou o parâmetro `fontsize`.
+  - `mistune` entrou como dependência de desenvolvimento.
+  - 3 testes novos; 264 passando.
+- O test set não foi usado.
+- **Revisão dos gráficos da nota, a pedido do usuário:**
+  - Os gráficos passam a ser em português, com vírgula decimal. A exceção à regra do inglês foi registrada no `CONTRIBUTING.md`.
+  - Viraram SVG com o texto como texto, desenhados na largura de uma coluna. Assim saem nítidos no PDF e com a fonte do documento.
+  - **Gráfico de ablation:** em vez das diferenças, mostra o NDCG@10 de cada variante, com uma linha no reranker completo e a cor indicando se o paired bootstrap confirma a queda.
+    - Um intervalo de 95% em torno de cada média não foi usado. Os intervalos absolutos (±0,05) se sobrepõem e esconderiam diferenças que a comparação pareada detecta.
+    - Os valores de cada variante vêm da tabela de ablations do notebook 04.
+
+- **Segunda revisão da nota, a pedido do usuário (linguagem para revisores não técnicos):**
+  - O gráfico de ablation saiu. A seção 5 descreve em texto as formas de ordenar testadas, o ganho do LambdaMART e quais grupos de features importam.
+  - O gráfico de qualidade mostra só as médias (barras com o valor), sem intervalos de 95%.
+  - O texto não traz mais intervalos entre colchetes. Cada comparação diz a métrica e os dois valores ("o NDCG@10 sobe de 0,783 para 0,824") e se a diferença é estatisticamente significativa ou um empate. O termo é definido uma vez na seção 3.
+  - A tabela de custo virou um parágrafo, para manter a nota em 3 páginas.
+- **Seção 9 da nota, uso de IA generativa:** um parágrafo dizendo que o Claude Code foi usado como assistente em todas as etapas, inclusive coding e análise dos dados, e onde estão as instruções que ele seguiu. A contagem de testes citada na seção 2 foi corrigida para 265. A nota continua com 3 páginas.
+
 ### 2026-11-09: Declaração do uso de IA e estado final do EVALUATION
 - **Seção 9 da nota técnica reescrita:** ferramenta e escopo (o assistente escreveu o código, os testes, a maior parte das análises e a documentação), papel do autor, como o código e as conclusões foram revisados, e os modelos pré-treinados usados. Motivo: o enunciado pede que a declaração diga como a IA foi usada e como o código e as conclusões foram revisados. A nota continua com 3 páginas.
 - **`docs/EVALUATION.md` deixa de se apresentar como rascunho:**
@@ -802,6 +827,11 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
 - **Embedding model:** a limitação "um único embedding model" do TL;DR do 03 passou a dizer o motivo (tempo de gerar os embeddings do catalog a cada modelo; `torch` para o fine-tuning). O `docs/EVALUATION.md` ganhou o item 8 dos "Trabalhos futuros": testar outros modelos pré-treinados que o `fastembed` já roda sem `torch` (`all-MiniLM-L6-v2`, `bge-base-en-v1.5`), com custo, latência, memória e o fato de o test set já ter sido rodado.
 - **Pooling bias no Capped Recall@100:** nova limitação no TL;DR do 03: a métrica principal pode favorecer a BM25 v2, porque o pool do WANDS incluiu uma lexical search e a semantic search tem judged@100 menor (0,627 contra 0,676); o tamanho do efeito não foi medido. Usa o token overlap da Etapa 5.1 do `01_eda.ipynb` (48,5% contra 1,8%), e não os 83% dos produtos com todos os tokens, que são só 4,5% dos produtos julgados (conta feita fora do notebook, não citada).
 
+### 2026-11-10: Nota técnica: pooling bias no retrieval e um único embedding model
+- **Seção 8, "Avaliação incompleta (pooling bias)":** corrigida a origem do pool (não só sistemas de busca: também cliques e carrinho e a classe prevista para a query, segundo o artigo do WANDS) e acrescentado o efeito no Capped Recall@100, que pode favorecer o BM25 (judged@100 de 63% na semantic search contra 68% no BM25 v2, `notebooks/03_semantic_hybrid.ipynb` Etapa 7.3); o tamanho do efeito não foi medido.
+- **Seção 8, "Sem fine-tuning"** virou "Um único modelo de embeddings, sem fine-tuning", com o motivo (cerca de 32 min para recalcular os embeddings do catalog por modelo).
+- PDF gerado de novo (`uv run python -m wands_search.technical_note`); continua com 4 páginas.
+
 ### 2026-11-10: TL;DR do notebook 04 no formato do 02 e do 03
 - **O que foi feito:** o TL;DR de `notebooks/04_reranker.ipynb` foi reescrito no registro formal do 02 e do 03, com os valores explícitos em cada item. Aqui o NDCG@10 continua como métrica principal, porque é a da regra de seleção do sistema.
 - **Tabelas:** "Resultados no validation set" com NDCG@10, condensed NDCG@10, MRR@10, judged@10, Capped Recall@100, `capped_recall@100_exact_partial` e latência de retrieval e ranking da BM25 v2, da hybrid search, dos dois rerankers e do sistema escolhido; e uma tabela de comparações pareadas com CI 95% (cada reranker contra o seu retrieval, hybrid search + reranker contra BM25 v2 + reranker, com e sem o cross-encoder, LambdaMART contra pointwise).
@@ -818,7 +848,49 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
 - **O que foi feito:** a frase de que o ganho do reranker "não vem de ordenar melhor os produtos julgados" dizia mais do que a medida permite: o condensed NDCG@10 não muda de forma distinguível de 0, mas, com cerca de 95 queries, uma melhora abaixo de cerca de 0,02 não seria detectada. Passou a "não há melhora detectável na ordem dos produtos julgados" no TL;DR do `04_reranker.ipynb` (com a ressalva do tamanho da amostra), no do `06_test_set.ipynb` e na seção 4 da nota técnica (PDF gerado de novo, 4 páginas). O TL;DR do 07 não tinha a afirmação.
 - **Título do item `zero` × `drop` no TL;DR do 04:** "Esse comportamento decorre do tratamento dos produtos sem `label` no treino" virou "O reranker aprende a rebaixar os produtos sem `label`, e é daí que vem o ganho de NDCG@10", que diz o que o modelo aprende; o texto do item não mudou.
 
+### 2026-11-11: Pooling bias limita a avaliação, não o aprendizado
+- **Nota técnica, seção 8 (pooling bias):** acrescentado que o pooling bias limita a avaliação, não o aprendizado: os produtos julgados trazem informação de relevância, e o sistema aprende a ordená-los (condensed NDCG@10 maior com o LambdaMART que com o pointwise, e com as features de embedding; `notebooks/04_reranker.ipynb`, Etapas 4.3, 5.2 e 5.3.1); o que os julgamentos não permitem é medir se um produto bom não julgado chega ao topo, porque a métrica dá 0 a todo produto sem `label`. PDF gerado de novo; continua com 4 páginas.
+
 ### 2026-11-11: TL;DR do 07: o significado dos números
 - **TL;DR do 07, tabela da perda:** nova coluna "O que significa" para cada nível (ordem perfeita, oracle, sistema escolhido, hybrid search) e nota "Como ler os números" logo abaixo: cerca de 70% da perda no ranking (0,156 de 0,224), o reranker recupera 0,030 dos 0,186 de ranking loss da hybrid search (cerca de 16%), o sistema chega a 83% do oracle (0,776 de 0,933), e todos os níveis contam só os produtos julgados.
 - **TL;DR do 07, item "A perda está na ordenação":** reescrito para dizer o que os números significam (os produtos relevantes já estão entre os candidatos; cerca de 70% da perda está no ranking; o reranker recupera cerca de 16% da ranking loss; nas 7 queries com o top 10 quase todo sem `label`, a nota baixa diz mais sobre a avaliação), em vez de listar as perdas, que estão na tabela logo acima.
 - **TL;DR do 07, quatro itens com o significado explícito:** as 7 queries com o top 10 quase todo sem `label` ("a nota baixa não mostra se o sistema errou", com a Etapa 3.2); `label` consistentes (a perda reflete erros do sistema, e consistente não quer dizer correto); "perda" passou a "perda de NDCG@10", com a definição (1 − NDCG@10) e a ressalva de que cada query é atribuída inteira a uma categoria; `unexplained_labels` (não corrigível com estes dados, ruído no treino, e os anotadores viram a imagem, que não está no dataset).
+
+### 2026-11-11: Nota técnica alinhada aos TL;DR revisados
+- **Seção 7:** definição da perda (1 − NDCG@10, somada nas queries) e aviso de que cada query é atribuída inteira a uma categoria; "a perda está no ranking" com o significado (cerca de 70% da perda no ranking, o reranker recupera cerca de 16%, só produtos julgados); causas visíveis "que o reranker poderia corrigir"; no limite do dataset, que nenhum sistema separa esses produtos e que os anotadores viram a imagem; consistência dos julgamentos com o impacto (a perda reflete erros do sistema).
+- **Seção 4:** "O test set confirma o validation set" virou "mantém a ordem, com uma troca" (BM25 v2 + reranker à frente da hybrid search); o item de retrieval passou a comparar com o BM25 v2 nos dois sets, a dizer que no test set a diferença não foi testada e a remeter ao pooling bias da seção 8.
+- **Seção 5:** a nuance do condensed NDCG@10 nas ablations (só retrieval e embedding melhoram a ordem dos julgados); "14 vezes" virou "cerca de 13 a 14 vezes" no ranking.
+- **Resumo e seção 2:** 36 ms descrito como soma das medianas; 270 testes virou 280, contando os de `wands_search.technical_note`.
+- PDF gerado de novo.
+- **Resumo da nota:** novo item "Sistema escolhido" antes do resultado (hybrid search + reranker LambdaMART sem o cross-encoder, e a regra de escolha); o resultado passou a dizer o que 0,824 significa (82% da nota da melhor ordem possível com os produtos julgados) e que é provavelmente um piso.
+- **Resumo da nota, mais curto:** "Sistema escolhido" e "Resultado" reescritos num registro mais técnico, a pedido do usuário, para cortar texto; saíram a regra de escolha do resumo e a comparação com o BM25 baseline (0,717), que continuam nas seções 3 e 4.
+- **Seção 1 da nota (Arquitetura), mais curta:** os quatro componentes em registro técnico, um item cada, com as features do reranker numa frase só; saíram as explicações em linguagem leiga do BM25, dos embeddings e da RRF.
+- **Nota técnica:** "catalog" virou "catálogo" em todo o texto, como no notebook 02; o item do reranker na seção 1 ficou mais curto ("LambdaMART (LightGBM) treinado com 29 features em quatro grupos").
+- **Seção 2 da nota (Preparação dos dados), mais curta:** os itens de `label` e de queries viraram um só; o de texto dos produtos perdeu o exemplo de plural; o de reprodutibilidade virou uma lista curta.
+- **Seção 3 da nota (Protocolo de avaliação), mais curta:** split e uso de cada set num item só; métricas em uma linha cada, com a restrição às queries com Exact numa frase comum; significância e regra de escolha resumidas, com "sistema ou componente" no lugar da remissão à seção 5.
+- **Seção 4 da nota, item "Retrieval":** só os valores do test set (Capped Recall@100 de 0,760 contra 0,736, e com Exact e Partial 0,700 contra 0,662), mais a significância medida no validation set (só a diferença com Exact e Partial é significativa), porque o test set não tem o paired bootstrap dessas métricas.
+- **Seção 4 da nota, "Ressalva":** "o reranker e a hybrid search ficam praticamente iguais" virou "o sistema escolhido e a hybrid search sem reranker", porque há um só reranker; a leitura do assistente passou a dizer o que foi lido (os 23 produtos sem julgamento retirados do top 10 em 10 queries sorteadas do train set) com os números absolutos; "vem do pooling bias" passou a "existe só na métrica: vem de tirar do topo produtos relevantes que não foram julgados". O primeiro item da seção foi para antes do gráfico, por espaço.
+- **Nota técnica, seção 5 incorporada:** o item de treino do reranker foi para a seção 1; as comparações e ablations do reranker foram para o fim da seção 4 ("O que o reranker agrega"); as seções seguintes foram renumeradas (latência é a 5, error analysis a 6, limitações a 7, uso de IA a 8), e as remissões "seção 8" passaram a "seção 7". Na seção 3, voltaram em versão curta a definição de "significativa" e "não distinguível de 0" e a regra de escolha, que a seção 4 usa.
+- **Seção 4 da nota, "O que o reranker agrega", mais curta:** três itens curtos (ordenação, cross-encoder, ablations), sem as explicações do cross-encoder e do LambdaMART, que já estão na seção 1, e sem a frase de interpretação das ablations.
+- **Seção 4 da nota, "Ordenação" e "Cross-encoder":** os valores passaram a citar o nome da barra do gráfico ("hybrid + reranker + cross-encoder", 0,772; "hybrid + reranker (escolhido)", 0,776) e a dizer que o cross-encoder sozinho (0,720) e o modelo por produto (0,740) não estão no gráfico, porque "o LambdaMART (0,772)" não era encontrado no gráfico.
+- **Seção 4 da nota, "Ablations":** sem os valores de NDCG@10 de cada ablation; o item diz só quais grupos agregam (text, embeddings, retrieval) e quais não (ratings, outras numéricas, query). Os valores continuam no notebook 04, Etapa 5.3.1.
+- **Seção 4 da nota:** saiu o item das ablations ("Quais features importam"), que usava nomes de grupos diferentes dos definidos na seção 1. Os resultados continuam no notebook 04 (Etapa 5.3.1); o sistema escolhido mantém as 29 features, porque essas ablations foram feitas depois do test set.
+- **Seção 4 da nota, item "Features":** uma frase sobre a ablação no lugar do item removido: ratings, as outras features numéricas e as da query não mudam o NDCG@10 de forma mensurável, continuam no modelo, e retirá-los fica como trabalho futuro.
+- **Seção 5 da nota (Latência e custo), mais curta:** saíram a divisão dos 37 min entre texto longo e curto, o tamanho dos modelos (180 KB) e o tempo de carga com o cache (43 s); o resto foi resumido.
+- **Gráfico da error analysis na nota:** saiu o painel "De onde vem a perda: categorias de erro"; fica só a escada de NDCG@10 (ordem perfeita, melhor ordem dos 100 candidatos, sistema escolhido, hybrid search). Em `wands_search.technical_note`, saíram `ERROR_CATEGORY_SHARE` e as cores dos grupos, e o teste deixou de conferir a soma das categorias. As porcentagens por categoria continuam no texto da seção 6 e no notebook 07.
+- **Seção 7 da nota, "Amostra pequena":** reescrita em uma frase (incerteza de cerca de ±0,05 no NDCG@10 médio; diferenças de 0,01 a 0,03 no limite do que o paired bootstrap detecta, como em `06_test_set.ipynb`, Etapa 2).
+- **Seção 7 da nota, próximos passos:** entrou "Outros embedding models pré-treinados" (item 8 dos "Trabalhos futuros" do EVALUATION) antes do fine-tuning, que passou a dizer o risco (287 queries para ajustar um modelo de 33 milhões de parâmetros), como a "Ordem de prioridade" do EVALUATION já indicava. A lista da nota tem agora 8 itens e não segue mais a numeração do EVALUATION.
+
+### 2026-11-11: Nota técnica de volta a 3 páginas
+- **Cortes:** item do pooling bias da seção 7 resumido (sem os números de judged@100 e com a parte de "limita a avaliação, não o aprendizado" numa frase); "Ressalva" da seção 4 sem os números da leitura do assistente (continuam no notebook 04); próximos passos em uma linha cada; "Foco nos 10 primeiros" em uma frase.
+- **Gráfico de qualidade:** saiu o painel do Capped Recall@100, que está em números no item "Retrieval" da seção 4; em `wands_search.technical_note`, saiu a constante `CAPPED_RECALL_AT_100`.
+- PDF gerado de novo: 3 páginas (contadas com `pypdf`; o `mdls` do macOS mostrava o valor antigo). 280 testes passando.
+- **Gráfico de qualidade:** o painel do Capped Recall@100 voltou, a pedido do usuário (com a constante `CAPPED_RECALL_AT_100`). Com ele, a nota passa de novo para 4 páginas, com cerca de 500 caracteres na 4ª.
+
+### 2026-11-11: Notebook 05 no TL;DR e na nota técnica
+- **`notebooks/05_search.ipynb`:** TL;DR reescrito no formato dos notebooks 02 a 07: "O que fizemos", "Como usar", "Como medimos", tabela de resultados (tempo de carga, efeito do reranker no validation set, latência de retrieval, ranking e busca completa), principais descobertas com os valores e seção "Limitações". O "julgadas por uma pessoa" da Etapa 1.2 não foi repetido no TL;DR, que fala em leitura qualitativa sem `label`. Só markdown; o notebook não foi reexecutado.
+- **Nota técnica, resumo:** novo item "Busca de ponta a ponta", que aponta para o `notebooks/05_search.ipynb` e para `wands_search.search.SearchPipeline`. A nota está com 4 páginas (cerca de 660 caracteres na 4ª), por causa da volta do painel do Capped Recall@100 e deste item.
+- **Nota técnica, seção 8 (uso de IA):** reescrita a partir do texto do usuário: o assistente foi responsável por todo o código; o autor supervisionou e definiu cada etapa, tomou as decisões de produto e de design e estabeleceu as perguntas e os critérios de decisão; a revisão do código por outra instância do Claude e a revisão da documentação pelo autor. A nota está com 4 páginas (cerca de 340 caracteres na 4ª).
+- **Nota técnica, seção 8:** "responsável por todo o código" passou a incluir "e por boa parte da redação das análises e da documentação", coerente com as seções 4 e 6, que atribuem ao assistente as leituras qualitativas.
+- **Nota técnica, próximos passos:** depois dos ajustes do usuário, voltou o item "Tipo de produto" (21% da perda), com "considerar um classificador de query"; a numeração foi corrigida (1 a 7), "membedding" virou "embedding models" e saiu a vírgula sobrando do corretor ortográfico.
+- **README:** a estrutura dizia que `nota_tecnica.md` e `style.css` eram gerados por `wands_search.technical_note`; eles são escritos à mão, e o módulo gera `figures/` e o PDF.

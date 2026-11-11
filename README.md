@@ -109,7 +109,7 @@ Os números da nota ficam como constantes em `wands_search.technical_note`, cada
 | `notebooks/` | Análises e experimentos, numerados na ordem de "Reproduzir os resultados" |
 | `models/` | Rerankers treinados por `wands_search.train_reranker`: um arquivo do LightGBM (`.txt`) e um de metadados (`.json`) por modelo. O sistema escolhido é `hybrid_reranker_no_cross_encoder`. Carregados com `reranker.load_model` |
 | `cache/` | Fora do git. O embedding model e o cross-encoder (`cache/fastembed/`) e os embeddings dos produtos (`cache/embeddings/`) |
-| `docs/` | [DEVLOG](docs/DEVLOG.md), [protocolo de avaliação](docs/EVALUATION.md) e a [nota técnica](docs/nota_tecnica/nota_tecnica.pdf) (`nota_tecnica.md`, `style.css` e `figures/`, gerados por `wands_search.technical_note`) |
+| `docs/` | [DEVLOG](docs/DEVLOG.md), [protocolo de avaliação](docs/EVALUATION.md) e a [nota técnica](docs/nota_tecnica/nota_tecnica.pdf) (texto em `nota_tecnica.md` e `style.css`; `figures/` e o PDF gerados por `wands_search.technical_note`) |
 
 Módulos de `src/wands_search/`:
 

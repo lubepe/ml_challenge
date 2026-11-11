@@ -1516,6 +1516,7 @@ dependencies = [
 dev = [
     { name = "ipykernel" },
     { name = "jupyter" },
+    { name = "mistune" },
     { name = "nbconvert" },
     { name = "pytest" },
 ]
@@ -1537,6 +1538,7 @@ requires-dist = [
 dev = [
     { name = "ipykernel", specifier = ">=7.4.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "mistune", specifier = ">=3.4.0" },
     { name = "nbconvert", specifier = ">=7.17.2" },
     { name = "pytest", specifier = ">=9.2.0" },
 ]

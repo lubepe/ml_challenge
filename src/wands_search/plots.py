@@ -73,9 +73,9 @@ def apply_style() -> None:
     )
 
 
-def add_caption(fig: Figure, text: str, width: int = 120) -> None:
+def add_caption(fig: Figure, text: str, width: int = 120, fontsize: float = 9) -> None:
     """Add an explanatory note below the figure, wrapped to ``width`` characters."""
-    fig.text(0.01, -0.01, textwrap.fill(text, width), va="top", ha="left", color=SECONDARY_INK, fontsize=9)
+    fig.text(0.01, -0.01, textwrap.fill(text, width), va="top", ha="left", color=SECONDARY_INK, fontsize=fontsize)
 
 
 def reference_line(ax: Axes, x: float, label: str, y_fraction: float = 0.93, ha: str = "left") -> None:
