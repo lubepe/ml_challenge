@@ -57,8 +57,8 @@ Ordem completa, do dataset à nota técnica. Os tempos são de um Intel Core i9 
 | Passo | Comando ou notebook | O que gera | Tempo | Precisa de |
 |---|---|---|---|---|
 | 1. Split | `uv run python -m wands_search.split` | `splits/query_split.csv` (já versionado) | segundos | dataset |
-| 2. EDA | `01_eda_revised.ipynb` | análise exploratória e decisões do split | ~30 s | dataset |
-| 3. Lexical search | `02_bm25_revised.ipynb` | BM25 baseline, v2 e v3, ajuste de `k1` e `b` | ~3,5 min | dataset |
+| 2. EDA | `01_eda.ipynb` | análise exploratória e decisões do split | ~30 s | dataset |
+| 3. Lexical search | `02_bm25.ipynb` | BM25 baseline, v2 e v3, ajuste de `k1` e `b` | ~3,5 min | dataset |
 | 4. Semantic e hybrid search | `03_semantic_hybrid.ipynb` | embeddings em `cache/embeddings/`, ajuste do hybrid search | ~37 min para gerar os embeddings, ou o download do Release | — |
 | 5. Reranker | `04_reranker.ipynb` | tuning, validation set, ablations e seleção do sistema | ~15 min | embeddings |
 | 6. Modelos salvos | `uv run python -m wands_search.train_reranker` | `models/` (já versionado) | alguns minutos, mais o download do cross-encoder (~80 MB) | embeddings |
@@ -75,7 +75,7 @@ Ordem completa, do dataset à nota técnica. Os tempos são de um Intel Core i9 
 |---|---|
 | 4. Resultados | `03_semantic_hybrid.ipynb` e `04_reranker.ipynb` (validation set), `06_test_set.ipynb` (test set) |
 | 5. O que cada parte do ranking agrega | `04_reranker.ipynb` |
-| 6. Latência e custo | `06_test_set.ipynb` (latência), `02_bm25_revised.ipynb`, `03_semantic_hybrid.ipynb` e `05_search.ipynb` (custos) |
+| 6. Latência e custo | `06_test_set.ipynb` (latência), `02_bm25.ipynb`, `03_semantic_hybrid.ipynb` e `05_search.ipynb` (custos) |
 | 7. Error analysis | `07_error_analysis.ipynb` |
 
 Os números da nota ficam como constantes em `wands_search.technical_note`, cada um com a sua fonte no `docs/EVALUATION.md` ou nos notebooks.
@@ -96,7 +96,7 @@ Os números da nota ficam como constantes em `wands_search.technical_note`, cada
 
 **Versões:** fixadas no `uv.lock`. O `pyproject.toml` limita o `onnxruntime` a < 1.24 só no macOS Intel, onde as versões mais novas não instalam.
 
-**Reexecução conferida:** os notebooks 01, 02 e 04 foram reexecutados do início ao fim, e as saídas foram comparadas célula a célula com as versionadas. Todas as métricas se repetiram exatamente; só os tempos e a latência mudaram. A única exceção é uma porcentagem descritiva do `01_eda_revised.ipynb` (`queries_positive_pct` de `has_ratings`): uma query com correlação igual a zero passa a ter um valor positivo minúsculo, por arredondamento de ponto flutuante. Esse número não é citado no texto.
+**Reexecução conferida:** os notebooks 01, 02 e 04 foram reexecutados do início ao fim, e as saídas foram comparadas célula a célula com as versionadas. Todas as métricas se repetiram exatamente; só os tempos e a latência mudaram. A única exceção é uma porcentagem descritiva do `01_eda.ipynb` (`queries_positive_pct` de `has_ratings`): uma query com correlação igual a zero passa a ter um valor positivo minúsculo, por arredondamento de ponto flutuante. Esse número não é citado no texto.
 
 ## Estrutura
 
@@ -106,7 +106,7 @@ Os números da nota ficam como constantes em `wands_search.technical_note`, cada
 | `src/wands_search/` | Código reutilizável (módulos abaixo) |
 | `splits/` | `query_split.csv`: set (`train`, `validation` ou `test`) de cada `query_id`, gerado por `wands_search.split` |
 | `tests/` | Testes automatizados (não baixam o embedding model) |
-| `notebooks/` | Análises e experimentos, numerados na ordem de "Reproduzir os resultados". `01_eda.ipynb` e `02_bm25.ipynb` são as versões originais de `01_eda_revised.ipynb` e `02_bm25_revised.ipynb`, que trazem os mesmos resultados com texto revisado |
+| `notebooks/` | Análises e experimentos, numerados na ordem de "Reproduzir os resultados" |
 | `models/` | Rerankers treinados por `wands_search.train_reranker`: um arquivo do LightGBM (`.txt`) e um de metadados (`.json`) por modelo. O sistema escolhido é `hybrid_reranker_no_cross_encoder`. Carregados com `reranker.load_model` |
 | `cache/` | Fora do git. O embedding model e o cross-encoder (`cache/fastembed/`) e os embeddings dos produtos (`cache/embeddings/`) |
 | `docs/` | [DEVLOG](docs/DEVLOG.md), [protocolo de avaliação](docs/EVALUATION.md) e a [nota técnica](docs/nota_tecnica/nota_tecnica.pdf) (`nota_tecnica.md`, `style.css` e `figures/`, gerados por `wands_search.technical_note`) |

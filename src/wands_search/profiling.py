@@ -6,7 +6,6 @@ from pathlib import Path
 import pandas as pd
 
 from wands_search.data import PAIR_COLUMNS
-from wands_search.metrics import bootstrap_mean_ci  # noqa: F401 (kept here for notebooks/01_eda.ipynb)
 from wands_search.text import tokenize
 
 LABEL_NAMES = ["Exact", "Partial", "Irrelevant"]

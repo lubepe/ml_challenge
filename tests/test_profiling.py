@@ -1,6 +1,6 @@
 import pandas as pd
 
-from wands_search import profiling
+from wands_search import metrics, profiling
 
 
 def make_labels() -> pd.DataFrame:
@@ -117,9 +117,9 @@ def test_within_query_spearman_ignores_missing_values():
 
 def test_bootstrap_mean_ci_brackets_the_mean_and_is_reproducible():
     values = pd.Series([0.1, 0.2, 0.3, 0.4, 0.5])
-    low, high = profiling.bootstrap_mean_ci(values, seed=0)
+    low, high = metrics.bootstrap_mean_ci(values, seed=0)
     assert low < values.mean() < high
-    assert (low, high) == profiling.bootstrap_mean_ci(values, seed=0)
+    assert (low, high) == metrics.bootstrap_mean_ci(values, seed=0)
 
 
 def test_query_token_descriptors_against_the_catalog():

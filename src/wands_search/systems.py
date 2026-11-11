@@ -1,6 +1,6 @@
 """The retrieval systems chosen on the train set, built with the parameters of docs/EVALUATION.md.
 
-BM25 v2: ``k1`` and ``b`` from notebooks/02_bm25_revised.ipynb, Etapa 4.2. Semantic search:
+BM25 v2: ``k1`` and ``b`` from notebooks/02_bm25.ipynb, Etapa 4.2. Semantic search:
 long text with the bge query prefix, notebooks/03_semantic_hybrid.ipynb, Etapa 3.1. Hybrid
 search: weighted RRF, k and w from the same notebook, Etapa 5.3.
 """

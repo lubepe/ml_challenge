@@ -34,7 +34,7 @@ Convenções do repositório, válidas para colaboradores humanos e agentes de I
 
 ## Notebooks
 
-Os modelos de formato são [notebooks/01_eda_revised.ipynb](notebooks/01_eda_revised.ipynb) e [notebooks/02_bm25_revised.ipynb](notebooks/02_bm25_revised.ipynb). Um notebook novo segue a mesma estrutura e os mesmos termos.
+Os modelos de formato são [notebooks/01_eda.ipynb](notebooks/01_eda.ipynb) e [notebooks/02_bm25.ipynb](notebooks/02_bm25.ipynb). Um notebook novo segue a mesma estrutura e os mesmos termos.
 
 ### Estrutura
 
