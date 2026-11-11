@@ -4,7 +4,7 @@ Sistema de busca e ranking de produtos sobre o dataset WANDS.
 
 - **Sistema escolhido:** hybrid search (BM25 + embeddings, combinados por RRF) recupera candidatos, e um reranker LambdaMART (LightGBM) reordena os 100 primeiros.
 - **Resultado:** NDCG@10 de 0,824 no test set (95 queries, execução única), contra 0,717 do BM25 baseline.
-- **Documentos:** a [nota técnica](docs/nota_tecnica/nota_tecnica.pdf) resume arquitetura, dados, protocolo, resultados, ablations, latência e error analysis. O protocolo de avaliação e a tabela de resultados por split ficam em [docs/EVALUATION.md](docs/EVALUATION.md), e o diário de desenvolvimento em [docs/DEVLOG.md](docs/DEVLOG.md).
+- **Documentos:** a [nota técnica](docs/nota_tecnica/nota_tecnica.pdf) resume arquitetura, dados, protocolo, resultados, latência, error analysis, limitações e próximos passos. O protocolo de avaliação e a tabela de resultados por split ficam em [docs/EVALUATION.md](docs/EVALUATION.md), e o diário de desenvolvimento em [docs/DEVLOG.md](docs/DEVLOG.md).
 
 ## Como executar
 
@@ -73,10 +73,9 @@ Ordem completa, do dataset à nota técnica. Os tempos são de um Intel Core i9 
 
 | Seção da nota | Notebook |
 |---|---|
-| 4. Resultados | `03_semantic_hybrid.ipynb` e `04_reranker.ipynb` (validation set), `06_test_set.ipynb` (test set) |
-| 5. O que cada parte do ranking agrega | `04_reranker.ipynb` |
-| 6. Latência e custo | `06_test_set.ipynb` (latência), `02_bm25.ipynb`, `03_semantic_hybrid.ipynb` e `05_search.ipynb` (custos) |
-| 7. Error analysis | `07_error_analysis.ipynb` |
+| 4. Resultados | `03_semantic_hybrid.ipynb` e `04_reranker.ipynb` (validation set, inclusive o que o reranker agrega), `06_test_set.ipynb` (test set) |
+| 5. Latência e custo | `06_test_set.ipynb` (latência), `02_bm25.ipynb`, `03_semantic_hybrid.ipynb` e `05_search.ipynb` (custos) |
+| 6. Error analysis | `07_error_analysis.ipynb` |
 
 Os números da nota ficam como constantes em `wands_search.technical_note`, cada um com a sua fonte no `docs/EVALUATION.md` ou nos notebooks.
 

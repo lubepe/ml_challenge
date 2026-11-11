@@ -145,7 +145,9 @@ def _note(fig: Figure, text: str, width: int = 82) -> None:
 
 
 def _save(fig: Figure, path: Path) -> None:
-    fig.savefig(path, format=FIGURE_FORMAT, bbox_inches="tight", pad_inches=0.02)
+    """Save without a date and with fixed element ids, so that an unchanged figure gives the same file."""
+    with plt.rc_context({"svg.hashsalt": "wands_search.technical_note"}):
+        fig.savefig(path, format=FIGURE_FORMAT, bbox_inches="tight", pad_inches=0.02, metadata={"Date": None})
     plt.close(fig)
 
 

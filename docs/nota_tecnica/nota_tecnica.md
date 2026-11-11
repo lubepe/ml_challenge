@@ -1,6 +1,6 @@
 # Busca e ranking de produtos no WANDS
 
-<p class="subtitle">Nota técnica · 9 de novembro de 2026</p>
+<p class="subtitle">Nota técnica · 11 de novembro de 2026</p>
 
 <div class="summary">
 

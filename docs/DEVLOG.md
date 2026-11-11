@@ -894,3 +894,8 @@ Registro cronológico de passos, decisões e resultados. Adicione uma entrada a 
 - **Nota técnica, seção 8:** "responsável por todo o código" passou a incluir "e por boa parte da redação das análises e da documentação", coerente com as seções 4 e 6, que atribuem ao assistente as leituras qualitativas.
 - **Nota técnica, próximos passos:** depois dos ajustes do usuário, voltou o item "Tipo de produto" (21% da perda), com "considerar um classificador de query"; a numeração foi corrigida (1 a 7), "membedding" virou "embedding models" e saiu a vírgula sobrando do corretor ortográfico.
 - **README:** a estrutura dizia que `nota_tecnica.md` e `style.css` eram gerados por `wands_search.technical_note`; eles são escritos à mão, e o módulo gera `figures/` e o PDF.
+
+### 2026-11-11: Data da nota técnica e gráficos reproduzíveis
+- **Data:** o subtítulo da nota passou de 9 para 11 de novembro de 2026, a data da revisão final.
+- **Gráficos:** gerar a nota de novo mudava os três SVG mesmo sem mudança no conteúdo, porque o matplotlib grava a data e ids aleatórios. `technical_note._save` passou a gravar sem data e com `svg.hashsalt` fixo; duas gerações seguidas dão arquivos idênticos.
+- **README:** a tabela "De onde vem cada resultado da nota técnica" seguia a numeração antiga das seções; passou a 4 (Resultados, com o que o reranker agrega), 5 (Latência e custo) e 6 (Error analysis). A descrição da nota no topo troca "ablations" por "limitações e próximos passos".
